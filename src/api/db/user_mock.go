@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"github.com/stretchr/testify/mock"
 	"maria/src/api/domain"
@@ -8,6 +9,10 @@ import (
 
 type UserDBMock struct {
 	mock.Mock
+}
+
+func NewUserDBMock() *UserDBMock {
+	return &UserDBMock{}
 }
 
 func (m *UserDBMock) user(args mock.Arguments, index int) domain.User {
@@ -18,6 +23,15 @@ func (m *UserDBMock) user(args mock.Arguments, index int) domain.User {
 		panic(fmt.Sprintf("assert: arguments: user(%d) failed because object wasn't correct type: %v", index, args.Get(index)))
 	}
 	return s
+}
+
+func (m *UserDBMock) OnWithError(times int, method string, arguments ...interface{}) error {
+	errorExpected := errors.New("custom error")
+	m.On(method, arguments...).
+		Return(domain.User{}, errorExpected).
+		Times(times)
+
+	return errorExpected
 }
 
 func (m *UserDBMock) SelectByID(userID int64) (domain.User, error) {

@@ -1,6 +1,8 @@
 package db
 
-import "maria/src/api/domain"
+import (
+	"maria/src/api/domain"
+)
 
 type UserDB interface {
 	SelectByID(int64) (domain.User, error)
