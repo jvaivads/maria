@@ -15,7 +15,7 @@ type Controller struct {
 }
 
 func NewController() Controller {
-	return Controller{service: service{&dbMock{}}}
+	return Controller{service: newService(newRelationalDB())}
 }
 
 func (c Controller) GetByID(ctx *gin.Context) {
