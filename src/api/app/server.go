@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
 	"maria/src/api/user"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -12,5 +13,7 @@ func main() {
 
 	userController.SetURLMapping(router)
 
-	_ = router.Run("localhost:8080")
+	if err := router.Run("localhost:8080"); err != nil {
+		panic(err)
+	}
 }
