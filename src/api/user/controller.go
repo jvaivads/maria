@@ -2,20 +2,21 @@ package user
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"html"
+
+	"github.com/gin-gonic/gin"
 )
 
-type user struct {
+type User struct {
 	ID int64
 }
 
 type Controller struct {
-	service service
+	service Service
 }
 
-func NewController() Controller {
-	return Controller{service: newService(newRelationalDB())}
+func NewController(service Service) Controller {
+	return Controller{service: service}
 }
 
 func (c Controller) GetByID(ctx *gin.Context) {

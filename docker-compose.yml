@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+    db:
+      image: mariadb:latest
+      container_name: "mariadb"
+      environment:
+        MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "yes"
+        MARIADB_DATABASE: "maria"
+      ports:
+        - "3306:3306"
+      networks:
+        - maria-net
+    api:
+      image: "maria-api:0.0.1"
+      build:
+        dockerfile: Dockerfile
+      container_name: "maria-api"
+      environment:
+        LOCAL_ENV: "docker"
+      ports:
+        - "8080:8080"
+      networks:
+        - maria-net
+      depends_on:
+        - db
+      restart: always
+networks:
+  maria-net:
+    driver: bridge
+

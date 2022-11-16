@@ -1,13 +1,17 @@
 package user
 
-type service struct {
+type Service interface {
+	getByID(userID int64) (User, error)
+}
+
+type userService struct {
 	userRepository Persister
 }
 
-func newService(userRepository Persister) service {
-	return service{userRepository: userRepository}
+func NewService(userRepository Persister) Service {
+	return userService{userRepository: userRepository}
 }
 
-func (us service) getByID(userID int64) (user, error) {
-	return us.userRepository.selectByID(userID)
+func (us userService) getByID(userID int64) (User, error) {
+	return us.userRepository.SelectByID(userID)
 }

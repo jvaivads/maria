@@ -3,43 +3,50 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"sync"
 
 	"github.com/go-sql-driver/mysql"
 )
 
-var (
-	client *sql.DB
-	mu     sync.Mutex
-)
+type Config struct {
+	User   string
+	Pass   string
+	DBName string
+	Net    string
+	Host   string
+	Port   string
 
-func GetSQLClient() Client {
-	mu.Lock()
-	defer mu.Unlock()
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime int
+	ConnMaxIdleTime int
+}
 
-	if client != nil {
-		return client
-	}
+func (cfg Config) toMySQLConfig() *mysql.Config {
+	mycfg := mysql.NewConfig()
+	mycfg.User = cfg.User
+	mycfg.Passwd = cfg.Pass
+	mycfg.DBName = cfg.DBName
+	mycfg.Net = cfg.Net
+	mycfg.Addr = cfg.Host + ":" + cfg.Port
 
-	cfg := mysql.NewConfig()
-	cfg.User = "root"
-	cfg.Addr = "localhost:3306"
-	cfg.DBName = "maria"
+	return mycfg
+}
 
-	var err error
-	if client, err = sql.Open("mysql", cfg.FormatDSN()); err != nil {
+func NewSQLClient(cfg Config) Client {
+	var (
+		client *sql.DB
+		err    error
+	)
+
+	if client, err = sql.Open("mysql", cfg.toMySQLConfig().FormatDSN()); err != nil {
 		panic(err)
 	}
 
-	/*
-		client.SetMaxOpenConns(0)
-		client.SetMaxIdleConns(0)
-		client.SetConnMaxLifetime(0)
-		client.SetConnMaxIdleTime(0)
-	*/
+	client.SetMaxOpenConns(cfg.MaxOpenConns)
+	client.SetMaxIdleConns(cfg.MaxIdleConns)
 
 	if err = client.Ping(); err != nil {
-		panic(err)
+		panic(fmt.Errorf("cannot connect with DSN %s due to: %w", cfg.toMySQLConfig().FormatDSN(), err))
 	}
 
 	fmt.Println("database connected")

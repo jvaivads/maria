@@ -22,14 +22,14 @@ var (
 )
 
 type Persister interface {
-	selectByID(int64) (user, error)
-	//update(user) (user, error)
-	//insert(user) (user, error)
+	SelectByID(int64) (User, error)
+	//update(User) (User, error)
+	//insert(User) (User, error)
 }
 
-func newRelationalDB() *relationalDB {
+func NewRelationalDB(client db.Client) Persister {
 	return &relationalDB{
-		client: db.GetSQLClient(),
+		client: client,
 	}
 }
 
@@ -37,13 +37,13 @@ type relationalDB struct {
 	client db.Client
 }
 
-func (db *relationalDB) selectByID(userID int64) (user, error) {
+func (db *relationalDB) SelectByID(userID int64) (User, error) {
 	var (
-		u   user
+		u   User
 		row *sql.Row
 		err error
 
-		query = `SELECT user_id FROM user WHERE id = ?`
+		query = `SELECT user_id FROM User WHERE id = ?`
 	)
 
 	if row = db.client.QueryRow(query, userID); row == nil {

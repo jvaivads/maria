@@ -1,15 +1,16 @@
 package user
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type UserServiceSuite struct {
 	suite.Suite
 	dbMock  *dbMock
-	service service
+	service userService
 	userID  int64
 }
 
@@ -19,7 +20,7 @@ func TestUserServiceSuite(t *testing.T) {
 
 func (s *UserServiceSuite) BeforeTest(suiteName, testName string) {
 	s.dbMock = newDBMock()
-	s.service = newService(s.dbMock)
+	s.service = NewService(s.dbMock)
 	s.userID = 10
 }
 
@@ -28,7 +29,7 @@ func (s *UserServiceSuite) AfterTest(suiteName, testName string) {
 }
 
 func (s *UserServiceSuite) TestServiceReturnError() {
-	errExpected := s.dbMock.onWithError(1, "selectByID", s.userID)
+	errExpected := s.dbMock.onWithError(1, "SelectByID", s.userID)
 
 	_, err := s.service.getByID(s.userID)
 
