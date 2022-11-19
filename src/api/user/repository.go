@@ -14,9 +14,8 @@ var (
 
 	scanError = func(err error, query string) error {
 		if err == sql.ErrNoRows {
-			return fmt.Errorf("result is empty by using query: '%s'. error: %w", query, err)
+			return nil
 		}
-
 		return fmt.Errorf("unexpected error scannig result by using query: '%s'. error: %w", query, err)
 	}
 )

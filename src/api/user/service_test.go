@@ -10,7 +10,7 @@ import (
 type UserServiceSuite struct {
 	suite.Suite
 	dbMock  *dbMock
-	service userService
+	service Service
 	userID  int64
 }
 

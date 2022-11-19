@@ -1,5 +1,11 @@
 package user
 
+import "errors"
+
+var (
+	userNotFoundByIDError = errors.New("user not found by user_id")
+)
+
 type Service interface {
 	getByID(userID int64) (User, error)
 }
@@ -13,5 +19,9 @@ func NewService(userRepository Persister) Service {
 }
 
 func (us userService) getByID(userID int64) (User, error) {
-	return us.userRepository.SelectByID(userID)
+	user, err := us.userRepository.SelectByID(userID)
+	if err == nil && user.isEmptyUser() {
+		return user, userNotFoundByIDError
+	}
+	return user, err
 }
