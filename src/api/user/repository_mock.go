@@ -1,8 +1,6 @@
 package user
 
 import (
-	"errors"
-
 	"github.com/stretchr/testify/mock"
 )
 
@@ -12,15 +10,6 @@ type dbMock struct {
 
 func newDBMock() *dbMock {
 	return &dbMock{}
-}
-
-func (m *dbMock) onWithError(times int, method string, arguments ...interface{}) error {
-	errorExpected := errors.New("custom error")
-	m.On(method, arguments...).
-		Return(User{}, errorExpected).
-		Times(times)
-
-	return errorExpected
 }
 
 func (m *dbMock) SelectByID(userID int64) (User, error) {

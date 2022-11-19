@@ -20,11 +20,11 @@ func TestControllerSuite(t *testing.T) {
 	suite.Run(t, new(ControllerSuite))
 }
 
-func (s *ControllerSuite) BeforeTest(suiteName, testName string) {
+func (c *ControllerSuite) BeforeTest(suiteName, testName string) {
 
 }
 
-func (s *ControllerSuite) AfterTest(suiteName, testName string) {
+func (c *ControllerSuite) AfterTest(suiteName, testName string) {
 }
 
 func (c *ControllerSuite) TestGetUserByID() {
@@ -32,11 +32,12 @@ func (c *ControllerSuite) TestGetUserByID() {
 		userID      = int64(10)
 		customError = errors.New("custom error")
 	)
+
 	type test struct {
 		name           string
 		param          string
 		controller     Controller
-		applyMockCalls func(controller *Controller) error
+		applyMockCalls func(controller *Controller) (func(t *testing.T), error)
 		expectedCode   int
 		expectedBody   map[string]interface{}
 	}
@@ -61,55 +62,28 @@ func (c *ControllerSuite) TestGetUserByID() {
 			expectedBody: newBadRequestResponse(customError.Error()),
 		},
 		{
-			name:       "user not found",
-			param:      "10",
-			controller: NewController(newServiceMock()),
-			applyMockCalls: func(controller *Controller) error {
-				s, ok := controller.service.(*serviceMock)
-				if !ok {
-					return errors.New("it could not cast to mock service")
-				}
-				s.On("getByID", userID).
-					Return(User{}, userNotFoundByIDError).
-					Once()
-				return nil
-			},
-			expectedCode: http.StatusNotFound,
-			expectedBody: newNotFoundError("user_id", userID),
+			name:           "user not found",
+			param:          "10",
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: setServiceGetByIDMock(User{}, userNotFoundByIDError, userID),
+			expectedCode:   http.StatusNotFound,
+			expectedBody:   newNotFoundError("user_id", userID),
 		},
 		{
-			name:       "service return internal server error",
-			param:      "10",
-			controller: NewController(newServiceMock()),
-			applyMockCalls: func(controller *Controller) error {
-				s, ok := controller.service.(*serviceMock)
-				if !ok {
-					return errors.New("it could not cast to mock service")
-				}
-				s.On("getByID", userID).
-					Return(User{}, customError).
-					Once()
-				return nil
-			},
-			expectedCode: http.StatusInternalServerError,
-			expectedBody: newInternalServerError(customError),
+			name:           "service return internal server error",
+			param:          "10",
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: setServiceGetByIDMock(User{}, customError, userID),
+			expectedCode:   http.StatusInternalServerError,
+			expectedBody:   newInternalServerError(customError),
 		},
 		{
-			name:       "happy case",
-			param:      "10",
-			controller: NewController(newServiceMock()),
-			applyMockCalls: func(controller *Controller) error {
-				s, ok := controller.service.(*serviceMock)
-				if !ok {
-					return errors.New("it could not cast to mock service")
-				}
-				s.On("getByID", int64(10)).
-					Return(User{ID: userID}, nil).
-					Once()
-				return nil
-			},
-			expectedCode: http.StatusOK,
-			expectedBody: map[string]interface{}{"user_id": userID},
+			name:           "happy case",
+			param:          "10",
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: setServiceGetByIDMock(User{ID: userID}, nil, userID),
+			expectedCode:   http.StatusOK,
+			expectedBody:   map[string]interface{}{"user_id": userID},
 		},
 	}
 
@@ -121,9 +95,11 @@ func (c *ControllerSuite) TestGetUserByID() {
 			ctx.AddParam("user_id", test.param)
 
 			if test.applyMockCalls != nil {
-				if err := test.applyMockCalls(&test.controller); err != nil {
+				if assertsCalls, err := test.applyMockCalls(&test.controller); err != nil {
 					assert.Fail(t, err.Error())
 					return
+				} else {
+					defer assertsCalls(t)
 				}
 			}
 
@@ -137,5 +113,25 @@ func (c *ControllerSuite) TestGetUserByID() {
 			assert.Equal(t, test.expectedCode, r.Code)
 			assert.Equal(t, string(bytes), r.Body.String())
 		})
+	}
+}
+
+func setServiceGetByIDMock(
+	userResponse User,
+	errorResponse error,
+	userID int64,
+) func(*Controller) (func(t *testing.T), error) {
+	return func(c *Controller) (func(t *testing.T), error) {
+		s, ok := c.service.(*serviceMock)
+		if !ok {
+			return nil, errors.New("it could not cast to mock service")
+		}
+		s.On("getByID", userID).
+			Return(userResponse, errorResponse).
+			Once()
+
+		return func(t *testing.T) {
+			s.AssertExpectations(t)
+		}, nil
 	}
 }

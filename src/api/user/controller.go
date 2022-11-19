@@ -2,8 +2,6 @@ package user
 
 import (
 	"errors"
-	"fmt"
-	"html"
 	"net/http"
 	"strconv"
 
@@ -52,13 +50,16 @@ func (c Controller) GetUserByID(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, user)
 }
 
+/*
 func (c Controller) Post(ctx *gin.Context) {
 	_, _ = fmt.Fprintf(ctx.Writer, "Hello, %q", html.EscapeString(ctx.Request.URL.Path))
 }
 
+*/
+
 func (c Controller) SetURLMapping(router *gin.Engine) {
 	router.GET("/user/:user_id", c.GetUserByID)
-	router.POST("/user", c.GetUserByID)
+	//router.POST("/user", c.GetUserByID)
 }
 
 func newBadRequestResponse(message string) map[string]interface{} {
