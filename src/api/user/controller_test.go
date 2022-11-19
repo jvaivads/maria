@@ -116,6 +116,54 @@ func (c *ControllerSuite) TestGetUserByID() {
 	}
 }
 
+func (c *ControllerSuite) TestSetURLMapping() {
+	var (
+		userID = int64(10)
+	)
+
+	type test struct {
+		name           string
+		path           string
+		method         string
+		controller     Controller
+		applyMockCalls func(controller *Controller) (func(t *testing.T), error)
+	}
+
+	tests := []test{
+		{
+			name:           "get user by id",
+			path:           "/user/10",
+			method:         http.MethodGet,
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: setServiceGetByIDMock(User{ID: userID}, nil, userID),
+		},
+	}
+
+	for _, test := range tests {
+		c.T().Run(test.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			test.controller.SetURLMapping(router)
+
+			if test.applyMockCalls != nil {
+				if assertsCalls, err := test.applyMockCalls(&test.controller); err != nil {
+					assert.Fail(t, err.Error())
+					return
+				} else {
+					defer assertsCalls(t)
+				}
+			}
+
+			req := httptest.NewRequest(test.method, test.path, nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			assert.Equal(c.T(), http.StatusOK, w.Code)
+		})
+	}
+}
+
 func setServiceGetByIDMock(
 	userResponse User,
 	errorResponse error,

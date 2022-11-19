@@ -8,20 +8,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type controller interface {
+	SetURLMapping(router *gin.Engine)
+}
+
 func main() {
 	router := gin.Default()
+	controllers := make([]controller, 0)
 
-	userController := user.NewController(
+	controllers = append(controllers, user.NewController(
 		user.NewService(
 			user.NewRelationalDB(
 				db.NewSQLClient(
 					getSQLClientConfig(),
-				),
-			),
-		),
-	)
+				)))))
 
-	userController.SetURLMapping(router)
+	for i := range controllers {
+		controllers[i].SetURLMapping(router)
+	}
 
 	if err := router.Run("localhost:8080"); err != nil {
 		panic(err)
