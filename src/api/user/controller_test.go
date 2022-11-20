@@ -1,13 +1,14 @@
 package user
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/render"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -31,6 +32,14 @@ func (c *ControllerSuite) TestGetUserByID() {
 	var (
 		userID      = int64(10)
 		customError = errors.New("custom error")
+		user        = User{
+			ID:          userID,
+			UserName:    "user",
+			Alias:       "alias",
+			Email:       "user@email.com",
+			DateCreated: time.Now(),
+			Active:      true,
+		}
 	)
 
 	type test struct {
@@ -39,7 +48,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 		controller     Controller
 		applyMockCalls func(controller *Controller) (func(t *testing.T), error)
 		expectedCode   int
-		expectedBody   map[string]interface{}
+		expectedBody   string
 	}
 
 	tests := []test{
@@ -48,7 +57,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 			param:        "",
 			controller:   Controller{},
 			expectedCode: http.StatusBadRequest,
-			expectedBody: newBadRequestResponse("user_id param is missed"),
+			expectedBody: renderToJSON(newBadRequestResponse("user_id param is missed")),
 		},
 		{
 			name:  "it cannot parse user_id param",
@@ -59,7 +68,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 				},
 			},
 			expectedCode: http.StatusBadRequest,
-			expectedBody: newBadRequestResponse(customError.Error()),
+			expectedBody: renderToJSON(newBadRequestResponse(customError.Error())),
 		},
 		{
 			name:           "user not found",
@@ -67,7 +76,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 			controller:     NewController(newServiceMock()),
 			applyMockCalls: setServiceGetByIDMock(User{}, userNotFoundByIDError, userID),
 			expectedCode:   http.StatusNotFound,
-			expectedBody:   newNotFoundError("user_id", userID),
+			expectedBody:   renderToJSON(newNotFoundError("user_id", userID)),
 		},
 		{
 			name:           "service return internal server error",
@@ -75,15 +84,15 @@ func (c *ControllerSuite) TestGetUserByID() {
 			controller:     NewController(newServiceMock()),
 			applyMockCalls: setServiceGetByIDMock(User{}, customError, userID),
 			expectedCode:   http.StatusInternalServerError,
-			expectedBody:   newInternalServerError(customError),
+			expectedBody:   renderToJSON(newInternalServerError(customError)),
 		},
 		{
 			name:           "happy case",
 			param:          "10",
 			controller:     NewController(newServiceMock()),
-			applyMockCalls: setServiceGetByIDMock(User{ID: userID}, nil, userID),
+			applyMockCalls: setServiceGetByIDMock(user, nil, userID),
 			expectedCode:   http.StatusOK,
-			expectedBody:   map[string]interface{}{"user_id": userID},
+			expectedBody:   renderToJSON(user),
 		},
 	}
 
@@ -105,13 +114,8 @@ func (c *ControllerSuite) TestGetUserByID() {
 
 			test.controller.GetUserByID(ctx)
 
-			bytes, err := json.Marshal(test.expectedBody)
-			if !assert.Nil(t, err) {
-				return
-			}
-
 			assert.Equal(t, test.expectedCode, r.Code)
-			assert.Equal(t, string(bytes), r.Body.String())
+			assert.Equal(t, test.expectedBody, r.Body.String())
 		})
 	}
 }
@@ -162,6 +166,15 @@ func (c *ControllerSuite) TestSetURLMapping() {
 			assert.Equal(c.T(), http.StatusOK, w.Code)
 		})
 	}
+}
+
+func renderToJSON(u any) string {
+	r := render.JSON{Data: u}
+	w := httptest.NewRecorder()
+	if err := r.Render(w); err != nil {
+		panic(err)
+	}
+	return w.Body.String()
 }
 
 func setServiceGetByIDMock(

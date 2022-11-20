@@ -1,10 +1,9 @@
 package user
 
 import (
-	"database/sql"
 	"errors"
-	"maria/src/api/db"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
@@ -28,6 +27,14 @@ func (s *relationalDBSuite) AfterTest(suiteName, testName string) {
 func (s *relationalDBSuite) TestRelationalDBSuite() {
 	var (
 		userID = int64(10)
+		user   = User{
+			ID:          userID,
+			UserName:    "user",
+			Alias:       "alias",
+			Email:       "user@email.com",
+			DateCreated: time.Now(),
+			Active:      true,
+		}
 	)
 
 	type test struct {
@@ -61,12 +68,12 @@ func (s *relationalDBSuite) TestRelationalDBSuite() {
 		{
 			name: "happy case",
 			applyMockCalls: setClientQueryRowMock(
-				getUserMockRows([]User{{ID: userID}}),
+				getUserMockRows([]User{user}),
 				getUserByIDQuery,
 				nil,
 				userID),
 			expectedError: nil,
-			expectedUser:  User{ID: userID},
+			expectedUser:  user,
 		},
 	}
 
@@ -75,10 +82,10 @@ func (s *relationalDBSuite) TestRelationalDBSuite() {
 			client, mock, err := sqlmock.New()
 			if err != nil {
 				assert.Fail(t, err.Error())
+				return
 			}
 
 			if test.applyMockCalls != nil {
-
 				assertsCalls := test.applyMockCalls(mock)
 				defer func() {
 					if err = assertsCalls(); err != nil {
@@ -91,17 +98,17 @@ func (s *relationalDBSuite) TestRelationalDBSuite() {
 
 			user, err := rDB.SelectByID(userID)
 
-			assert.Equal(s.T(), test.expectedError, err)
-			assert.Equal(s.T(), test.expectedUser, user)
+			assert.Equal(t, test.expectedError, err)
+			assert.Equal(t, test.expectedUser, user)
 		})
 	}
 }
 
 func getUserMockRows(users []User) *sqlmock.Rows {
-	rows := sqlmock.NewRows([]string{"ID"})
+	rows := sqlmock.NewRows([]string{"user_id", "user_name", "alias", "email", "active", "date_created"})
 
 	for _, user := range users {
-		rows.AddRow(user.ID)
+		rows.AddRow(user.ID, user.UserName, user.Alias, user.Email, user.Active, user.DateCreated)
 	}
 	return rows
 }
@@ -120,21 +127,5 @@ func setClientQueryRowMock(
 		return func() error {
 			return m.ExpectationsWereMet()
 		}
-	}
-}
-
-func setClientQueryMock(
-	row *sql.Rows,
-	err error,
-	query string,
-	params ...any,
-) func(c *db.ClientMock) (func(t *testing.T), error) {
-	return func(c *db.ClientMock) (func(t *testing.T), error) {
-		c.On("Query", query, params).
-			Return(row, err).
-			Once()
-		return func(t *testing.T) {
-			c.AssertExpectations(t)
-		}, nil
 	}
 }

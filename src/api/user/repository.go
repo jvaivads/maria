@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	getUserByIDQuery = `SELECT user_id FROM User WHERE id = ?`
+	getUserByIDQuery = `SELECT user_id, user_name, alias, email, active, date_created FROM user WHERE id = ?`
 )
 
 var (
@@ -44,7 +44,14 @@ func (db *relationalDB) SelectByID(userID int64) (User, error) {
 
 	row = db.client.QueryRow(getUserByIDQuery, userID)
 
-	if err = row.Scan(&u.ID); err != nil {
+	if err = row.Scan(
+		&u.ID,
+		&u.UserName,
+		&u.Alias,
+		&u.Email,
+		&u.Active,
+		&u.DateCreated,
+	); err != nil {
 		return u, scanError(err, getUserByIDQuery)
 	}
 
