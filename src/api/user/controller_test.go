@@ -112,7 +112,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 				}
 			}
 
-			test.controller.GetUserByID(ctx)
+			test.controller.GetByID(ctx)
 
 			assert.Equal(t, test.expectedCode, r.Code)
 			assert.Equal(t, test.expectedBody, r.Body.String())

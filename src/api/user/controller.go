@@ -24,7 +24,7 @@ func NewController(service Service) Controller {
 	}
 }
 
-func (c Controller) GetUserByID(ctx *gin.Context) {
+func (c Controller) GetByID(ctx *gin.Context) {
 	param := ctx.Param("user_id")
 	if param == "" {
 		ctx.JSON(http.StatusBadRequest, userIDMissedError)
@@ -50,16 +50,32 @@ func (c Controller) GetUserByID(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, user)
 }
 
-/*
 func (c Controller) Post(ctx *gin.Context) {
-	_, _ = fmt.Fprintf(ctx.Writer, "Hello, %q", html.EscapeString(ctx.Request.URL.Path))
+	var (
+		userRequest NewUserRequest
+	)
+
+	err := ctx.BindJSON(&userRequest)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, newBadRequestResponse(err.Error()))
+	}
+
+	user, err := c.service.createUser(userRequest)
+	if err != nil {
+		if errors.Is(err, userWithSameValueError) {
+			ctx.JSON(http.StatusBadRequest, err)
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, newInternalServerError(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, user)
 }
 
-*/
-
 func (c Controller) SetURLMapping(router *gin.Engine) {
-	router.GET("/user/:user_id", c.GetUserByID)
-	//router.POST("/user", c.GetUserByID)
+	router.GET("/user/:user_id", c.GetByID)
+	router.POST("/user", c.Post)
 }
 
 func newBadRequestResponse(message string) map[string]interface{} {

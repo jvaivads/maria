@@ -13,6 +13,12 @@ type User struct {
 	Active      bool      `json:"active"`
 }
 
+type NewUserRequest struct {
+	UserName string `json:"user_name" binding:"required"`
+	Alias    string `json:"alias" binding:"required"`
+	Email    string `json:"email" binding:"required"`
+}
+
 func (u User) isEmptyUser() bool {
 	return u.ID == 0
 }
