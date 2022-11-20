@@ -2,16 +2,15 @@ package user
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"maria/src/api/db"
 )
 
-var (
-	emptyResultError = func(query string) error {
-		return errors.New(fmt.Sprintf("db client returns nothing by using query: '%s'", query))
-	}
+const (
+	getUserByIDQuery = `SELECT user_id FROM User WHERE id = ?`
+)
 
+var (
 	scanError = func(err error, query string) error {
 		if err == sql.ErrNoRows {
 			return nil
@@ -41,16 +40,12 @@ func (db *relationalDB) SelectByID(userID int64) (User, error) {
 		u   User
 		row *sql.Row
 		err error
-
-		query = `SELECT user_id FROM User WHERE id = ?`
 	)
 
-	if row = db.client.QueryRow(query, userID); row == nil {
-		return u, emptyResultError(query)
-	}
+	row = db.client.QueryRow(getUserByIDQuery, userID)
 
-	if err = row.Scan(&u); err != nil {
-		return u, scanError(err, query)
+	if err = row.Scan(&u.ID); err != nil {
+		return u, scanError(err, getUserByIDQuery)
 	}
 
 	return u, nil
