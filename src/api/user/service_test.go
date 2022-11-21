@@ -4,6 +4,7 @@ import (
 	"errors"
 	"maria/src/api/util"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -23,7 +24,7 @@ func (s *UserServiceSuite) BeforeTest(suiteName, testName string) {
 func (s *UserServiceSuite) AfterTest(suiteName, testName string) {
 }
 
-func (s *UserServiceSuite) TestUserService() {
+func (s *UserServiceSuite) TestGetByID() {
 	var (
 		userID = int64(10)
 	)
@@ -73,10 +74,115 @@ func (s *UserServiceSuite) TestUserService() {
 
 			user, err := test.service.getByID(userID)
 
-			assert.Equal(s.T(), test.expectedError, err)
-			assert.Equal(s.T(), test.expectedUser, user)
+			assert.Equal(t, test.expectedError, err)
+			assert.Equal(t, test.expectedUser, user)
 		})
 	}
+}
+
+func (s *UserServiceSuite) TestCreateUser() {
+	var (
+		userID      = int64(10)
+		customError = errors.New("custom error")
+		userRequest = NewUserRequest{
+			UserName: "name",
+			Alias:    "alias",
+			Email:    "email@email.com",
+		}
+	)
+
+	type test struct {
+		name          string
+		service       userService
+		mockCalls     mockApplier
+		expectedError error
+		expectedUser  User
+	}
+
+	tests := []test{
+		{
+			name:          "select by any return error",
+			service:       NewService(newDBMock()).(userService),
+			mockCalls:     mockApplier{setPersiterSelectByAnyMock(nil, customError, userRequest)},
+			expectedError: customError,
+			expectedUser:  User{},
+		},
+		{
+			name:          "select by any return a user with same name",
+			service:       NewService(newDBMock()).(userService),
+			mockCalls:     mockApplier{setPersiterSelectByAnyMock([]User{{UserName: userRequest.UserName}}, nil, userRequest)},
+			expectedError: userWithSameValueErrorFunc("user_name"),
+			expectedUser:  User{},
+		},
+		{
+			name:          "select by any return a user with same alias",
+			service:       NewService(newDBMock()).(userService),
+			mockCalls:     mockApplier{setPersiterSelectByAnyMock([]User{{Alias: userRequest.Alias}}, nil, userRequest)},
+			expectedError: userWithSameValueErrorFunc("alias"),
+			expectedUser:  User{},
+		},
+		{
+			name:          "select by any return a user with same email",
+			service:       NewService(newDBMock()).(userService),
+			mockCalls:     mockApplier{setPersiterSelectByAnyMock([]User{{Email: userRequest.Email}}, nil, userRequest)},
+			expectedError: userWithSameValueErrorFunc("email"),
+			expectedUser:  User{},
+		},
+		{
+			name:    "create user return error",
+			service: NewService(newDBMock()).(userService),
+			mockCalls: mockApplier{
+				setPersiterSelectByAnyMock(nil, nil, userRequest),
+				setPersiterCreateUserMock(User{}, customError, userRequest),
+			},
+			expectedError: customError,
+			expectedUser:  User{},
+		},
+		{
+			name:    "create user return error",
+			service: NewService(newDBMock()).(userService),
+			mockCalls: mockApplier{
+				setPersiterSelectByAnyMock(nil, nil, userRequest),
+				setPersiterCreateUserMock(userRequest.toUser(userID, time.Time{}, false), nil, userRequest),
+			},
+			expectedError: nil,
+			expectedUser:  userRequest.toUser(userID, time.Time{}, false),
+		},
+	}
+
+	for _, test := range tests {
+		s.T().Run(test.name, func(t *testing.T) {
+			if assertsCalls, err := test.mockCalls.apply(t, &test.service); err != nil {
+				assert.Fail(t, err.Error())
+				return
+			} else {
+				defer assertsCalls(t)
+			}
+
+			user, err := test.service.createUser(userRequest)
+
+			assert.Equal(t, test.expectedError, err)
+			assert.Equal(t, test.expectedUser, user)
+		})
+	}
+}
+
+type mockApplier []func(us *userService) (func(t *testing.T), error)
+
+func (appliers mockApplier) apply(t *testing.T, us *userService) (func(t *testing.T), error) {
+	var assertCalls []func(t *testing.T)
+	for i := range appliers {
+		if assertCall, err := appliers[i](us); err != nil {
+			return func(t *testing.T) {}, err
+		} else {
+			assertCalls = append(assertCalls, assertCall)
+		}
+	}
+	return func(t *testing.T) {
+		for i := range assertCalls {
+			assertCalls[i](t)
+		}
+	}, nil
 }
 
 func setPersiterSelectByIDMock(
@@ -91,6 +197,49 @@ func setPersiterSelectByIDMock(
 		}
 		r.On(util.GetFunctionName(r.selectByID), userID).
 			Return(userResponse, errorResponse).
+			Once()
+		return func(t *testing.T) {
+			r.AssertExpectations(t)
+		}, nil
+	}
+}
+
+func setPersiterSelectByAnyMock(
+	users []User,
+	err error,
+	userRequest NewUserRequest,
+) func(us *userService) (func(t *testing.T), error) {
+	return func(us *userService) (func(t *testing.T), error) {
+		r, ok := us.userRepository.(*dbMock)
+		if !ok {
+			return nil, errors.New("it could not cast to mock repository")
+		}
+		r.On(
+			util.GetFunctionName(r.selectByAny),
+			userRequest.UserName,
+			userRequest.Alias,
+			userRequest.Email).
+			Return(users, err).
+			Once()
+		return func(t *testing.T) {
+			r.AssertExpectations(t)
+		}, nil
+	}
+}
+
+func setPersiterCreateUserMock(
+	userResponse User,
+	err error,
+	userRequest NewUserRequest,
+) func(us *userService) (func(t *testing.T), error) {
+	return func(us *userService) (func(t *testing.T), error) {
+		r, ok := us.userRepository.(*dbMock)
+		if !ok {
+			return nil, errors.New("it could not cast to mock repository")
+		}
+		r.On(
+			util.GetFunctionName(r.createUser), userRequest).
+			Return(userResponse, err).
 			Once()
 		return func(t *testing.T) {
 			r.AssertExpectations(t)

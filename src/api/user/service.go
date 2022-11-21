@@ -45,7 +45,7 @@ func (us userService) createUser(user NewUserRequest) (User, error) {
 		case users[0].Alias == user.Alias:
 			return User{}, userWithSameValueErrorFunc("alias")
 		case users[0].Email == user.Email:
-			return User{}, userWithSameValueErrorFunc("user_name")
+			return User{}, userWithSameValueErrorFunc("email")
 		}
 		return User{}, conflictError
 	}

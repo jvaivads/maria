@@ -25,7 +25,7 @@ func (s *relationalDBSuite) BeforeTest(suiteName, testName string) {
 func (s *relationalDBSuite) AfterTest(suiteName, testName string) {
 }
 
-func (s *relationalDBSuite) TestRelationalDBSuite() {
+func (s *relationalDBSuite) TestSelectByID() {
 	var (
 		userID = int64(10)
 		user   = User{
