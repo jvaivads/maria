@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"maria/src/api/util"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,7 +89,7 @@ func setPersiterSelectByIDMock(
 		if !ok {
 			return nil, errors.New("it could not cast to mock repository")
 		}
-		r.On("SelectByID", userID).
+		r.On(util.GetFunctionName(r.selectByID), userID).
 			Return(userResponse, errorResponse).
 			Once()
 		return func(t *testing.T) {

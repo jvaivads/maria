@@ -28,7 +28,7 @@ func NewService(userRepository Persister) Service {
 }
 
 func (us userService) getByID(userID int64) (User, error) {
-	user, err := us.userRepository.SelectByID(userID)
+	user, err := us.userRepository.selectByID(userID)
 	if err == nil && user.isEmptyUser() {
 		return user, userNotFoundByIDError
 	}

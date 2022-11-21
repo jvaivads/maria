@@ -2,13 +2,13 @@ package user
 
 import (
 	"errors"
+	"maria/src/api/util"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/render"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -57,7 +57,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 			param:        "",
 			controller:   Controller{},
 			expectedCode: http.StatusBadRequest,
-			expectedBody: renderToJSON(newBadRequestResponse("user_id param is missed")),
+			expectedBody: util.RenderToJSON(newBadRequestResponse("user_id param is missed")),
 		},
 		{
 			name:  "it cannot parse user_id param",
@@ -68,7 +68,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 				},
 			},
 			expectedCode: http.StatusBadRequest,
-			expectedBody: renderToJSON(newBadRequestResponse(customError.Error())),
+			expectedBody: util.RenderToJSON(newBadRequestResponse(customError.Error())),
 		},
 		{
 			name:           "user not found",
@@ -76,7 +76,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 			controller:     NewController(newServiceMock()),
 			applyMockCalls: setServiceGetByIDMock(User{}, userNotFoundByIDError, userID),
 			expectedCode:   http.StatusNotFound,
-			expectedBody:   renderToJSON(newNotFoundError("user_id", userID)),
+			expectedBody:   util.RenderToJSON(newNotFoundError("user_id", userID)),
 		},
 		{
 			name:           "service return internal server error",
@@ -84,7 +84,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 			controller:     NewController(newServiceMock()),
 			applyMockCalls: setServiceGetByIDMock(User{}, customError, userID),
 			expectedCode:   http.StatusInternalServerError,
-			expectedBody:   renderToJSON(newInternalServerError(customError)),
+			expectedBody:   util.RenderToJSON(newInternalServerError(customError)),
 		},
 		{
 			name:           "happy case",
@@ -92,7 +92,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 			controller:     NewController(newServiceMock()),
 			applyMockCalls: setServiceGetByIDMock(user, nil, userID),
 			expectedCode:   http.StatusOK,
-			expectedBody:   renderToJSON(user),
+			expectedBody:   util.RenderToJSON(user),
 		},
 	}
 
@@ -168,15 +168,6 @@ func (c *ControllerSuite) TestSetURLMapping() {
 	}
 }
 
-func renderToJSON(u any) string {
-	r := render.JSON{Data: u}
-	w := httptest.NewRecorder()
-	if err := r.Render(w); err != nil {
-		panic(err)
-	}
-	return w.Body.String()
-}
-
 func setServiceGetByIDMock(
 	userResponse User,
 	errorResponse error,
@@ -187,7 +178,7 @@ func setServiceGetByIDMock(
 		if !ok {
 			return nil, errors.New("it could not cast to mock service")
 		}
-		s.On("getByID", userID).
+		s.On(util.GetFunctionName(s.getByID), userID).
 			Return(userResponse, errorResponse).
 			Once()
 

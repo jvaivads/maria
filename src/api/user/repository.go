@@ -14,7 +14,7 @@ const (
 )
 
 type Persister interface {
-	SelectByID(int64) (User, error)
+	selectByID(int64) (User, error)
 	SelectByAny(string, string, string) ([]User, error)
 	CreateUser(request NewUserRequest) (User, error)
 }
@@ -29,7 +29,7 @@ type relationalDB struct {
 	client db.Client
 }
 
-func (r *relationalDB) SelectByID(userID int64) (User, error) {
+func (r *relationalDB) selectByID(userID int64) (User, error) {
 	var (
 		u   User
 		row *sql.Row

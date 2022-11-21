@@ -97,7 +97,7 @@ func (s *relationalDBSuite) TestRelationalDBSuite() {
 
 			rDB := NewRelationalDB(client)
 
-			user, err := rDB.SelectByID(userID)
+			user, err := rDB.selectByID(userID)
 
 			assert.Equal(t, test.expectedError, err)
 			assert.Equal(t, test.expectedUser, user)

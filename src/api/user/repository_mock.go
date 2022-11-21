@@ -12,7 +12,7 @@ func newDBMock() *dbMock {
 	return &dbMock{}
 }
 
-func (m *dbMock) SelectByID(userID int64) (User, error) {
+func (m *dbMock) selectByID(userID int64) (User, error) {
 	args := m.Called(userID)
 	return mockUser(args, 0), args.Error(1)
 }
