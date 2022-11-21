@@ -152,7 +152,7 @@ func (s *UserServiceSuite) TestCreateUser() {
 
 	for _, test := range tests {
 		s.T().Run(test.name, func(t *testing.T) {
-			if assertsCalls, err := test.mockCalls.apply(t, &test.service); err != nil {
+			if assertsCalls, err := test.mockCalls.apply(&test.service); err != nil {
 				assert.Fail(t, err.Error())
 				return
 			} else {
@@ -169,7 +169,7 @@ func (s *UserServiceSuite) TestCreateUser() {
 
 type mockApplier []func(us *userService) (func(t *testing.T), error)
 
-func (appliers mockApplier) apply(t *testing.T, us *userService) (func(t *testing.T), error) {
+func (appliers mockApplier) apply(us *userService) (func(t *testing.T), error) {
 	var assertCalls []func(t *testing.T)
 	for i := range appliers {
 		if assertCall, err := appliers[i](us); err != nil {
