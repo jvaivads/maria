@@ -1,11 +1,16 @@
 package util
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"runtime"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
 )
 
@@ -27,4 +32,29 @@ func RenderToJSON(u any) string {
 		panic(err)
 	}
 	return w.Body.String()
+}
+
+// GetTestContext generates a gin.context for test. Useful for testing controller layer
+func GetTestContext(params map[string]string, body any) (*gin.Context, *httptest.ResponseRecorder, error) {
+	gin.SetMode(gin.TestMode)
+	r := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(r)
+
+	for key, value := range params {
+		ctx.AddParam(key, value)
+	}
+
+	if body == nil {
+		return ctx, r, nil
+	}
+
+	if b, err := json.Marshal(body); err != nil {
+		return nil, nil, err
+	} else {
+		ctx.Request = &http.Request{
+			Body: io.NopCloser(bytes.NewBuffer(b)),
+		}
+	}
+
+	return ctx, r, nil
 }

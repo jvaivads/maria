@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"maria/src/api/util"
 	"net/http"
 	"net/http/httptest"
@@ -102,9 +101,14 @@ func (c *ControllerSuite) TestGetUserByID() {
 
 	for _, test := range tests {
 		c.T().Run(test.name, func(t *testing.T) {
-			gin.SetMode(gin.TestMode)
-			r := httptest.NewRecorder()
-			ctx, _ := gin.CreateTestContext(r)
+			params := map[string]string{
+				"user_id": test.param,
+			}
+			ctx, r, err := util.GetTestContext(params, nil)
+			if err != nil {
+				assert.Fail(t, err.Error())
+				return
+			}
 			ctx.AddParam("user_id", test.param)
 
 			if test.applyMockCalls != nil {
@@ -201,17 +205,10 @@ func (c *ControllerSuite) TestPost() {
 
 	for _, test := range tests {
 		c.T().Run(test.name, func(t *testing.T) {
-			gin.SetMode(gin.TestMode)
-			r := httptest.NewRecorder()
-			ctx, _ := gin.CreateTestContext(r)
-
-			if b, err := json.Marshal(test.body); err != nil {
+			ctx, r, err := util.GetTestContext(nil, test.body)
+			if err != nil {
 				assert.Fail(t, err.Error())
 				return
-			} else {
-				ctx.Request = &http.Request{
-					Body: io.NopCloser(bytes.NewBuffer(b)),
-				}
 			}
 
 			if test.applyMockCalls != nil {
@@ -233,13 +230,19 @@ func (c *ControllerSuite) TestPost() {
 
 func (c *ControllerSuite) TestSetURLMapping() {
 	var (
-		userID = int64(10)
+		userID      = int64(10)
+		userRequest = NewUserRequest{
+			UserName: "name",
+			Alias:    "alias",
+			Email:    "email@email.com",
+		}
 	)
 
 	type test struct {
 		name           string
 		path           string
 		method         string
+		body           any
 		controller     Controller
 		applyMockCalls func(controller *Controller) (func(t *testing.T), error)
 	}
@@ -251,6 +254,18 @@ func (c *ControllerSuite) TestSetURLMapping() {
 			method:         http.MethodGet,
 			controller:     NewController(newServiceMock()),
 			applyMockCalls: setServiceGetByIDMock(User{ID: userID}, nil, userID),
+		},
+		{
+			name:       "post user",
+			path:       "/user",
+			method:     http.MethodPost,
+			body:       userRequest,
+			controller: NewController(newServiceMock()),
+			applyMockCalls: setServicePostMock(
+				userRequest.toUser(userID, time.Time{}, false),
+				nil,
+				userRequest,
+			),
 		},
 	}
 
@@ -269,7 +284,15 @@ func (c *ControllerSuite) TestSetURLMapping() {
 				}
 			}
 
-			req := httptest.NewRequest(test.method, test.path, nil)
+			var b bytes.Buffer
+			if test.body != nil {
+				if err := json.NewEncoder(&b).Encode(test.body); err != nil {
+					assert.Fail(t, err.Error())
+					return
+				}
+			}
+
+			req := httptest.NewRequest(test.method, test.path, &b)
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, req)
