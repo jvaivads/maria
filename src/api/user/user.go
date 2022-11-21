@@ -13,12 +13,23 @@ type User struct {
 	Active      bool      `json:"active"`
 }
 
+func (u User) isEmptyUser() bool {
+	return u.ID == 0
+}
+
 type NewUserRequest struct {
 	UserName string `json:"user_name" binding:"required"`
 	Alias    string `json:"alias" binding:"required"`
 	Email    string `json:"email" binding:"required"`
 }
 
-func (u User) isEmptyUser() bool {
-	return u.ID == 0
+func (u NewUserRequest) toUser(userID int64, dateCreated time.Time, active bool) User {
+	return User{
+		ID:          userID,
+		UserName:    u.UserName,
+		Alias:       u.Alias,
+		Email:       u.Email,
+		DateCreated: dateCreated,
+		Active:      active,
+	}
 }

@@ -109,11 +109,5 @@ func (r *relationalDB) createUser(request NewUserRequest) (User, error) {
 		return User{}, db.LastInsertedError(err, insertUserQuery)
 	}
 
-	return User{
-		ID:          userID,
-		UserName:    request.UserName,
-		Alias:       request.Alias,
-		Email:       request.Email,
-		DateCreated: dateCreated,
-	}, nil
+	return request.toUser(userID, dateCreated, false), nil
 }

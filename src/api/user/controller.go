@@ -58,12 +58,13 @@ func (c Controller) Post(ctx *gin.Context) {
 	err := ctx.BindJSON(&userRequest)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, newBadRequestResponse(err.Error()))
+		return
 	}
 
 	user, err := c.service.createUser(userRequest)
 	if err != nil {
 		if errors.Is(err, userWithSameValueError) {
-			ctx.JSON(http.StatusBadRequest, err)
+			ctx.JSON(http.StatusBadRequest, newBadRequestResponse(err.Error()))
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, newInternalServerError(err))
