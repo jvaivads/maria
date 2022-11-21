@@ -31,7 +31,6 @@ func (s *UserServiceSuite) TestGetByID() {
 
 	type test struct {
 		name           string
-		service        userService
 		applyMockCalls func(us *userService) (func(t *testing.T), error)
 		expectedError  error
 		expectedUser   User
@@ -40,21 +39,18 @@ func (s *UserServiceSuite) TestGetByID() {
 	tests := []test{
 		{
 			name:           "user not found",
-			service:        NewService(newDBMock()).(userService),
 			applyMockCalls: setPersiterSelectByIDMock(User{}, nil, userID),
 			expectedError:  userNotFoundByIDError,
 			expectedUser:   User{},
 		},
 		{
 			name:           "repository return error",
-			service:        NewService(newDBMock()).(userService),
 			applyMockCalls: setPersiterSelectByIDMock(User{}, errors.New("custom error"), userID),
 			expectedError:  errors.New("custom error"),
 			expectedUser:   User{},
 		},
 		{
 			name:           "happy case",
-			service:        NewService(newDBMock()).(userService),
 			applyMockCalls: setPersiterSelectByIDMock(User{ID: userID}, nil, userID),
 			expectedError:  nil,
 			expectedUser:   User{ID: userID},
@@ -63,8 +59,9 @@ func (s *UserServiceSuite) TestGetByID() {
 
 	for _, test := range tests {
 		s.T().Run(test.name, func(t *testing.T) {
+			serv := NewService(newDBMock()).(userService)
 			if test.applyMockCalls != nil {
-				if assertsCalls, err := test.applyMockCalls(&test.service); err != nil {
+				if assertsCalls, err := test.applyMockCalls(&serv); err != nil {
 					assert.Fail(t, err.Error())
 					return
 				} else {
@@ -72,7 +69,7 @@ func (s *UserServiceSuite) TestGetByID() {
 				}
 			}
 
-			user, err := test.service.getByID(userID)
+			user, err := serv.getByID(userID)
 
 			assert.Equal(t, test.expectedError, err)
 			assert.Equal(t, test.expectedUser, user)
@@ -93,7 +90,6 @@ func (s *UserServiceSuite) TestCreateUser() {
 
 	type test struct {
 		name          string
-		service       userService
 		mockCalls     mockApplier
 		expectedError error
 		expectedUser  User
@@ -102,35 +98,30 @@ func (s *UserServiceSuite) TestCreateUser() {
 	tests := []test{
 		{
 			name:          "select by any return error",
-			service:       NewService(newDBMock()).(userService),
 			mockCalls:     mockApplier{setPersiterSelectByAnyMock(nil, customError, userRequest)},
 			expectedError: customError,
 			expectedUser:  User{},
 		},
 		{
 			name:          "select by any return a user with same name",
-			service:       NewService(newDBMock()).(userService),
 			mockCalls:     mockApplier{setPersiterSelectByAnyMock([]User{{UserName: userRequest.UserName}}, nil, userRequest)},
 			expectedError: userWithSameValueErrorFunc("user_name"),
 			expectedUser:  User{},
 		},
 		{
 			name:          "select by any return a user with same alias",
-			service:       NewService(newDBMock()).(userService),
 			mockCalls:     mockApplier{setPersiterSelectByAnyMock([]User{{Alias: userRequest.Alias}}, nil, userRequest)},
 			expectedError: userWithSameValueErrorFunc("alias"),
 			expectedUser:  User{},
 		},
 		{
 			name:          "select by any return a user with same email",
-			service:       NewService(newDBMock()).(userService),
 			mockCalls:     mockApplier{setPersiterSelectByAnyMock([]User{{Email: userRequest.Email}}, nil, userRequest)},
 			expectedError: userWithSameValueErrorFunc("email"),
 			expectedUser:  User{},
 		},
 		{
-			name:    "create user return error",
-			service: NewService(newDBMock()).(userService),
+			name: "create user return error",
 			mockCalls: mockApplier{
 				setPersiterSelectByAnyMock(nil, nil, userRequest),
 				setPersiterCreateUserMock(User{}, customError, userRequest),
@@ -139,8 +130,7 @@ func (s *UserServiceSuite) TestCreateUser() {
 			expectedUser:  User{},
 		},
 		{
-			name:    "create user return error",
-			service: NewService(newDBMock()).(userService),
+			name: "create user return error",
 			mockCalls: mockApplier{
 				setPersiterSelectByAnyMock(nil, nil, userRequest),
 				setPersiterCreateUserMock(userRequest.toUser(userID, time.Time{}, false), nil, userRequest),
@@ -152,14 +142,15 @@ func (s *UserServiceSuite) TestCreateUser() {
 
 	for _, test := range tests {
 		s.T().Run(test.name, func(t *testing.T) {
-			if assertsCalls, err := test.mockCalls.apply(&test.service); err != nil {
+			serv := NewService(newDBMock()).(userService)
+			if assertsCalls, err := test.mockCalls.apply(&serv); err != nil {
 				assert.Fail(t, err.Error())
 				return
 			} else {
 				defer assertsCalls(t)
 			}
 
-			user, err := test.service.createUser(userRequest)
+			user, err := serv.createUser(userRequest)
 
 			assert.Equal(t, test.expectedError, err)
 			assert.Equal(t, test.expectedUser, user)
