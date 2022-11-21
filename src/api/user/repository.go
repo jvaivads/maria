@@ -13,27 +13,6 @@ const (
 	insertUserQuery   = `INSERT INTO user (user_name, alias, email, active, date_created) VALUES (?, ?, ?, false, ?)`
 )
 
-var (
-	queryError = func(err error, query string) error {
-		return fmt.Errorf("unexpected error querying result by using query: '%s'. error: %w", query, err)
-	}
-	rowsError = func(err error, query string) error {
-		return fmt.Errorf("unexpected rows error by using query: '%s'. error: %w", query, err)
-	}
-	execError = func(err error, query string) error {
-		return fmt.Errorf("unexpected exec error by using query: '%s'. error: %w", query, err)
-	}
-	lastInsertedError = func(err error, query string) error {
-		return fmt.Errorf("unexpected getting last inserted error by using query: '%s'. error: %w", query, err)
-	}
-	scanError = func(err error, query string) error {
-		if err == sql.ErrNoRows {
-			return nil
-		}
-		return fmt.Errorf("unexpected error scannig result by using query: '%s'. error: %w", query, err)
-	}
-)
-
 type Persister interface {
 	SelectByID(int64) (User, error)
 	SelectByAny(string, string, string) ([]User, error)
@@ -50,14 +29,14 @@ type relationalDB struct {
 	client db.Client
 }
 
-func (db *relationalDB) SelectByID(userID int64) (User, error) {
+func (r *relationalDB) SelectByID(userID int64) (User, error) {
 	var (
 		u   User
 		row *sql.Row
 		err error
 	)
 
-	row = db.client.QueryRow(getUserByIDQuery, userID)
+	row = r.client.QueryRow(getUserByIDQuery, userID)
 
 	if err = row.Scan(
 		&u.ID,
@@ -67,21 +46,21 @@ func (db *relationalDB) SelectByID(userID int64) (User, error) {
 		&u.Active,
 		&u.DateCreated,
 	); err != nil {
-		return u, scanError(err, getUserByIDQuery)
+		return u, db.ScanError(err, getUserByIDQuery)
 	}
 
 	return u, nil
 }
 
-func (db *relationalDB) SelectByAny(name, alias, email string) ([]User, error) {
+func (r *relationalDB) SelectByAny(name, alias, email string) ([]User, error) {
 	var (
 		rows  *sql.Rows
 		err   error
 		users []User
 	)
 
-	if rows, err = db.client.Query(getUserByAnyQuery, name, alias, email); err != nil {
-		return nil, queryError(err, getUserByAnyQuery)
+	if rows, err = r.client.Query(getUserByAnyQuery, name, alias, email); err != nil {
+		return nil, db.QueryError(err, getUserByAnyQuery)
 	}
 
 	defer func() {
@@ -100,19 +79,19 @@ func (db *relationalDB) SelectByAny(name, alias, email string) ([]User, error) {
 			&u.Active,
 			&u.DateCreated,
 		); err != nil {
-			return nil, scanError(err, getUserByAnyQuery)
+			return nil, db.ScanError(err, getUserByAnyQuery)
 		}
 		users = append(users, u)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, rowsError(err, getUserByAnyQuery)
+		return nil, db.RowsError(err, getUserByAnyQuery)
 	}
 
 	return users, nil
 }
 
-func (db *relationalDB) CreateUser(request NewUserRequest) (User, error) {
+func (r *relationalDB) CreateUser(request NewUserRequest) (User, error) {
 	var (
 		userID int64
 		result sql.Result
@@ -121,13 +100,13 @@ func (db *relationalDB) CreateUser(request NewUserRequest) (User, error) {
 		dateCreated = time.Now()
 	)
 
-	result, err = db.client.Exec(insertUserQuery, request.UserName, request.Alias, request.Email, dateCreated)
+	result, err = r.client.Exec(insertUserQuery, request.UserName, request.Alias, request.Email, dateCreated)
 	if err != nil {
-		return User{}, execError(err, insertUserQuery)
+		return User{}, db.ExecError(err, insertUserQuery)
 	}
 
 	if userID, err = result.LastInsertId(); err != nil {
-		return User{}, lastInsertedError(err, insertUserQuery)
+		return User{}, db.LastInsertedError(err, insertUserQuery)
 	}
 
 	return User{

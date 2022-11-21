@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"maria/src/api/db"
 	"testing"
 	"time"
 
@@ -62,7 +63,7 @@ func (s *relationalDBSuite) TestRelationalDBSuite() {
 				getUserByIDQuery,
 				errors.New("custom error"),
 				userID),
-			expectedError: scanError(errors.New("custom error"), getUserByIDQuery),
+			expectedError: db.ScanError(errors.New("custom error"), getUserByIDQuery),
 			expectedUser:  User{},
 		},
 		{
