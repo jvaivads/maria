@@ -15,8 +15,8 @@ const (
 
 type Persister interface {
 	selectByID(int64) (User, error)
-	SelectByAny(string, string, string) ([]User, error)
-	CreateUser(request NewUserRequest) (User, error)
+	selectByAny(string, string, string) ([]User, error)
+	createUser(request NewUserRequest) (User, error)
 }
 
 func NewRelationalDB(client db.Client) Persister {
@@ -52,7 +52,7 @@ func (r *relationalDB) selectByID(userID int64) (User, error) {
 	return u, nil
 }
 
-func (r *relationalDB) SelectByAny(name, alias, email string) ([]User, error) {
+func (r *relationalDB) selectByAny(name, alias, email string) ([]User, error) {
 	var (
 		rows  *sql.Rows
 		err   error
@@ -91,7 +91,7 @@ func (r *relationalDB) SelectByAny(name, alias, email string) ([]User, error) {
 	return users, nil
 }
 
-func (r *relationalDB) CreateUser(request NewUserRequest) (User, error) {
+func (r *relationalDB) createUser(request NewUserRequest) (User, error) {
 	var (
 		userID int64
 		result sql.Result

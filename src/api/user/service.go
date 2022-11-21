@@ -36,7 +36,7 @@ func (us userService) getByID(userID int64) (User, error) {
 }
 
 func (us userService) createUser(user NewUserRequest) (User, error) {
-	if users, err := us.userRepository.SelectByAny(user.UserName, user.Alias, user.Email); err != nil {
+	if users, err := us.userRepository.selectByAny(user.UserName, user.Alias, user.Email); err != nil {
 		return User{}, err
 	} else if len(users) > 0 {
 		switch {
@@ -50,5 +50,5 @@ func (us userService) createUser(user NewUserRequest) (User, error) {
 		return User{}, conflictError
 	}
 
-	return us.userRepository.CreateUser(user)
+	return us.userRepository.createUser(user)
 }
