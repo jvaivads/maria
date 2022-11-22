@@ -90,7 +90,7 @@ func (s *UserServiceSuite) TestCreateUser() {
 
 	type test struct {
 		name          string
-		mockCalls     mockApplier
+		mockCalls     mockPersisterApplier
 		expectedError error
 		expectedUser  User
 	}
@@ -98,31 +98,31 @@ func (s *UserServiceSuite) TestCreateUser() {
 	tests := []test{
 		{
 			name:          "select by any return error",
-			mockCalls:     mockApplier{setPersiterSelectByAnyMock(nil, customError, userRequest)},
+			mockCalls:     mockPersisterApplier{setPersiterSelectByAnyMock(nil, customError, userRequest)},
 			expectedError: customError,
 			expectedUser:  User{},
 		},
 		{
 			name:          "select by any return a user with same name",
-			mockCalls:     mockApplier{setPersiterSelectByAnyMock([]User{{UserName: userRequest.UserName}}, nil, userRequest)},
+			mockCalls:     mockPersisterApplier{setPersiterSelectByAnyMock([]User{{UserName: userRequest.UserName}}, nil, userRequest)},
 			expectedError: userWithSameValueErrorFunc("user_name"),
 			expectedUser:  User{},
 		},
 		{
 			name:          "select by any return a user with same alias",
-			mockCalls:     mockApplier{setPersiterSelectByAnyMock([]User{{Alias: userRequest.Alias}}, nil, userRequest)},
+			mockCalls:     mockPersisterApplier{setPersiterSelectByAnyMock([]User{{Alias: userRequest.Alias}}, nil, userRequest)},
 			expectedError: userWithSameValueErrorFunc("alias"),
 			expectedUser:  User{},
 		},
 		{
 			name:          "select by any return a user with same email",
-			mockCalls:     mockApplier{setPersiterSelectByAnyMock([]User{{Email: userRequest.Email}}, nil, userRequest)},
+			mockCalls:     mockPersisterApplier{setPersiterSelectByAnyMock([]User{{Email: userRequest.Email}}, nil, userRequest)},
 			expectedError: userWithSameValueErrorFunc("email"),
 			expectedUser:  User{},
 		},
 		{
 			name: "create user return error",
-			mockCalls: mockApplier{
+			mockCalls: mockPersisterApplier{
 				setPersiterSelectByAnyMock(nil, nil, userRequest),
 				setPersiterCreateUserMock(User{}, customError, userRequest),
 			},
@@ -131,7 +131,7 @@ func (s *UserServiceSuite) TestCreateUser() {
 		},
 		{
 			name: "create user return error",
-			mockCalls: mockApplier{
+			mockCalls: mockPersisterApplier{
 				setPersiterSelectByAnyMock(nil, nil, userRequest),
 				setPersiterCreateUserMock(userRequest.toUser(userID, time.Time{}, false), nil, userRequest),
 			},
@@ -158,9 +158,9 @@ func (s *UserServiceSuite) TestCreateUser() {
 	}
 }
 
-type mockApplier []func(us *userService) (func(t *testing.T), error)
+type mockPersisterApplier []func(us *userService) (func(t *testing.T), error)
 
-func (appliers mockApplier) apply(us *userService) (func(t *testing.T), error) {
+func (appliers mockPersisterApplier) apply(us *userService) (func(t *testing.T), error) {
 	var assertCalls []func(t *testing.T)
 	for i := range appliers {
 		if assertCall, err := appliers[i](us); err != nil {

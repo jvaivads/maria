@@ -4,13 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"maria/src/api/db"
-	"time"
 )
 
 const (
 	getUserByIDQuery  = `SELECT user_id, user_name, alias, email, active, date_created FROM user WHERE id = ?`
 	getUserByAnyQuery = `SELECT user_id, user_name, alias, email, active, date_created FROM user WHERE user_name = ? OR alias = ? OR email = ?`
-	insertUserQuery   = `INSERT INTO user (user_name, alias, email, active, date_created) VALUES (?, ?, ?, false, ?)`
+	insertUserQuery   = `INSERT INTO user (user_name, alias, email, active) VALUES (?, ?, ?, false, NOW())`
 )
 
 type Persister interface {
@@ -96,11 +95,9 @@ func (r *relationalDB) createUser(request NewUserRequest) (User, error) {
 		userID int64
 		result sql.Result
 		err    error
-
-		dateCreated = time.Now()
 	)
 
-	result, err = r.client.Exec(insertUserQuery, request.UserName, request.Alias, request.Email, dateCreated)
+	result, err = r.client.Exec(insertUserQuery, request.UserName, request.Alias, request.Email)
 	if err != nil {
 		return User{}, db.ExecError(err, insertUserQuery)
 	}
@@ -109,5 +106,5 @@ func (r *relationalDB) createUser(request NewUserRequest) (User, error) {
 		return User{}, db.LastInsertedError(err, insertUserQuery)
 	}
 
-	return request.toUser(userID, dateCreated, false), nil
+	return r.selectByID(userID)
 }
