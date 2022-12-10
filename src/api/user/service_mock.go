@@ -43,3 +43,8 @@ func (m *serviceMock) createUser(user NewUserRequest) (User, error) {
 	args := m.Called(user)
 	return mockUser(args, 0), args.Error(1)
 }
+
+func (m *serviceMock) modifyUser(request ModifyUserRequest, user User) (User, error) {
+	args := m.Called(request, user)
+	return mockUser(args, 0), args.Error(1)
+}

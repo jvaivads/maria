@@ -77,7 +77,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 			name:           "user not found",
 			param:          "10",
 			controller:     NewController(newServiceMock()),
-			applyMockCalls: setServiceGetByIDMock(User{}, userNotFoundByIDError, userID),
+			applyMockCalls: setServiceGetByIDMock(User{}, userNotFoundError, userID),
 			expectedCode:   http.StatusNotFound,
 			expectedBody:   util.RenderToJSON(newNotFoundError("user_id", userID)),
 		},

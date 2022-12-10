@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	userNotFoundByIDError      = errors.New("user not found by user_id")
+	userNotFoundError          = errors.New("user not found")
 	conflictError              = errors.New("conflict internal error")
 	userWithSameValueError     = errors.New("common user feature")
 	userWithSameValueErrorFunc = func(value string) error {
@@ -15,8 +15,9 @@ var (
 )
 
 type Service interface {
-	getByID(userID int64) (User, error)
-	createUser(user NewUserRequest) (User, error)
+	getByID(int64) (User, error)
+	createUser(NewUserRequest) (User, error)
+	modifyUser(ModifyUserRequest, User) (User, error)
 }
 
 type userService struct {
@@ -30,7 +31,7 @@ func NewService(userRepository Persister) Service {
 func (us userService) getByID(userID int64) (User, error) {
 	user, err := us.userRepository.selectByID(userID)
 	if err == nil && user.isEmptyUser() {
-		return user, userNotFoundByIDError
+		return user, userNotFoundError
 	}
 	return user, err
 }
@@ -51,4 +52,27 @@ func (us userService) createUser(user NewUserRequest) (User, error) {
 	}
 
 	return us.userRepository.createUser(user)
+}
+
+func (us userService) modifyUser(request ModifyUserRequest, user User) (User, error) {
+	var (
+		err error
+	)
+	if user.ID == 0 {
+		users, err := us.userRepository.selectByAny(user.UserName, user.Alias, "")
+		if err != nil {
+			return User{}, err
+		}
+		if len(users) == 0 {
+			return User{}, userNotFoundError
+		}
+		if len(users) > 1 {
+			return User{}, conflictError
+		}
+		user = users[0]
+	} else if user, err = us.getByID(user.ID); err != nil {
+		return User{}, err
+	}
+
+	return us.userRepository.modifyUser(request, user)
 }

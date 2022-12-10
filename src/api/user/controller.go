@@ -39,7 +39,7 @@ func (c Controller) GetByID(ctx *gin.Context) {
 
 	user, err := c.service.getByID(userID)
 	if err != nil {
-		if errors.Is(err, userNotFoundByIDError) {
+		if errors.Is(err, userNotFoundError) {
 			ctx.JSON(http.StatusNotFound, newNotFoundError("user_id", userID))
 			return
 		}
@@ -74,9 +74,62 @@ func (c Controller) Post(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, user)
 }
 
+func (c Controller) Put(ctx *gin.Context) {
+	var (
+		userID      int64
+		userRequest ModifyUserRequest
+		err         error
+	)
+
+	if err = ctx.BindJSON(&userRequest); err != nil {
+		ctx.JSON(http.StatusBadRequest, newBadRequestResponse(err.Error()))
+		return
+	}
+
+	strUserID, ok1 := ctx.GetQuery("user_id")
+	userName, ok2 := ctx.GetQuery("user_name")
+	userAlias, ok3 := ctx.GetQuery("alias")
+
+	if !ok1 && !ok2 && !ok3 {
+		ctx.JSON(http.StatusBadRequest, newBadRequestResponse(
+			"user_id, user_name nor email were not specified in query string"))
+		return
+	}
+
+	if (ok1 && ok2) || (ok2 && ok3) || (ok3 && ok1) {
+		ctx.JSON(http.StatusBadRequest, newBadRequestResponse(
+			"specify only one parameter (user_id, user_name or email)"))
+		return
+	}
+
+	if userID, err = strconv.ParseInt(strUserID, 10, 64); ok1 && err != nil {
+		ctx.JSON(http.StatusBadRequest, newBadRequestResponse(
+			"user_id must be a positive integer"))
+		return
+	}
+
+	user := User{
+		ID:       userID,
+		UserName: userName,
+		Alias:    userAlias,
+	}
+
+	if user, err = c.service.modifyUser(userRequest, user); err != nil {
+		if errors.Is(err, userWithSameValueError) {
+			ctx.JSON(http.StatusBadRequest, newBadRequestResponse(err.Error()))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, newInternalServerError(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, user)
+}
+
 func (c Controller) SetURLMapping(router *gin.Engine) {
 	router.GET("/user/:user_id", c.GetByID)
 	router.POST("/user", c.Post)
+	router.PUT("/user/:user_id", c.Put)
 }
 
 func newBadRequestResponse(message string) map[string]interface{} {

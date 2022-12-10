@@ -19,6 +19,9 @@ var (
 	LastInsertedError = func(err error, query string) error {
 		return fmt.Errorf("unexpected last inserted error by using query: '%s'. error: %w", query, err)
 	}
+	RowsAffectedError = func(err error, query string) error {
+		return fmt.Errorf("unexpected getting rows affected error by using query: '%s'. error: %w", query, err)
+	}
 	ScanError = func(err error, query string) error {
 		if err == sql.ErrNoRows {
 			return nil

@@ -33,3 +33,7 @@ func (u NewUserRequest) toUser(userID int64, dateCreated time.Time, active bool)
 		Active:      active,
 	}
 }
+
+type ModifyUserRequest struct {
+	Active string `json:"active" binding:"required"`
+}

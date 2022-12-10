@@ -7,15 +7,17 @@ import (
 )
 
 const (
-	getUserByIDQuery  = `SELECT user_id, user_name, alias, email, active, date_created FROM user WHERE id = ?`
-	getUserByAnyQuery = `SELECT user_id, user_name, alias, email, active, date_created FROM user WHERE user_name = ? OR alias = ? OR email = ?`
-	insertUserQuery   = `INSERT INTO user (user_name, alias, email, active) VALUES (?, ?, ?, false, NOW())`
+	getUserByIDQuery    = `SELECT user_id, user_name, alias, email, active, date_created FROM user WHERE id = ?`
+	getUserByAnyQuery   = `SELECT user_id, user_name, alias, email, active, date_created FROM user WHERE user_name = ? OR alias = ? OR email = ?`
+	insertUserQuery     = `INSERT INTO user (user_name, alias, email, active) VALUES (?, ?, ?, false, NOW())`
+	UpdateUserByIDQuery = `UPDATE user SET active = ? WHERE id = ?`
 )
 
 type Persister interface {
 	selectByID(int64) (User, error)
 	selectByAny(string, string, string) ([]User, error)
-	createUser(request NewUserRequest) (User, error)
+	createUser(NewUserRequest) (User, error)
+	modifyUser(ModifyUserRequest, User) (User, error)
 }
 
 func NewRelationalDB(client db.Client) Persister {
@@ -107,4 +109,17 @@ func (r *relationalDB) createUser(request NewUserRequest) (User, error) {
 	}
 
 	return r.selectByID(userID)
+}
+
+func (r *relationalDB) modifyUser(request ModifyUserRequest, user User) (User, error) {
+	result, err := r.client.Exec(UpdateUserByIDQuery, request.Active, user.ID)
+	if err != nil {
+		return User{}, db.ExecError(err, UpdateUserByIDQuery)
+	}
+
+	if _, err := result.RowsAffected(); err != nil {
+		return User{}, db.RowsAffectedError(err, UpdateUserByIDQuery)
+	}
+
+	return r.selectByID(user.ID)
 }

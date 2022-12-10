@@ -26,3 +26,8 @@ func (m *dbMock) createUser(request NewUserRequest) (User, error) {
 	args := m.Called(request)
 	return mockUser(args, 0), args.Error(1)
 }
+
+func (m *dbMock) modifyUser(request ModifyUserRequest, user User) (User, error) {
+	args := m.Called(request, user)
+	return mockUser(args, 0), args.Error(1)
+}

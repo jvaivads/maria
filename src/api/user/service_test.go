@@ -40,7 +40,7 @@ func (s *UserServiceSuite) TestGetByID() {
 		{
 			name:           "user not found",
 			applyMockCalls: setPersiterSelectByIDMock(User{}, nil, userID),
-			expectedError:  userNotFoundByIDError,
+			expectedError:  userNotFoundError,
 			expectedUser:   User{},
 		},
 		{
