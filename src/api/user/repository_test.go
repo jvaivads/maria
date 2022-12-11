@@ -279,6 +279,105 @@ func (s *relationalDBSuite) TestCreateUser() {
 	}
 }
 
+func (s *relationalDBSuite) TestModifyUser() {
+	var (
+		user        = User{ID: 10}
+		active      = true
+		userRequest = ModifyUserRequest{Active: &active}
+		customError = errors.New("custom error")
+	)
+
+	type test struct {
+		name          string
+		mockCalls     mockDBApplier
+		expectedError error
+		expectedUser  User
+	}
+
+	tests := []test{
+		{
+			name: "query error",
+			mockCalls: mockDBApplier{db.SetClientExecMock(
+				nil,
+				UpdateUserByIDQuery,
+				customError,
+				active, user.ID),
+			},
+			expectedError: db.ExecError(customError, UpdateUserByIDQuery),
+			expectedUser:  User{},
+		},
+		{
+			name: "rows affected error",
+			mockCalls: mockDBApplier{db.SetClientExecMock(
+				sqlmock.NewErrorResult(customError),
+				UpdateUserByIDQuery,
+				nil,
+				active, user.ID),
+			},
+			expectedError: db.RowsAffectedError(customError, UpdateUserByIDQuery),
+			expectedUser:  User{},
+		},
+		{
+			name: "select by id return error",
+			mockCalls: mockDBApplier{
+				db.SetClientExecMock(
+					sqlmock.NewResult(0, 1),
+					UpdateUserByIDQuery,
+					nil,
+					active, user.ID),
+				db.SetClientQueryRowMock(
+					getUserMockRows([]User{{ID: user.ID}}),
+					getUserByIDQuery,
+					errors.New("custom error"),
+					user.ID),
+			},
+			expectedError: db.ScanError(customError, getUserByIDQuery),
+			expectedUser:  User{},
+		},
+		{
+			name: "happy case",
+			mockCalls: mockDBApplier{
+				db.SetClientExecMock(
+					sqlmock.NewResult(0, 1),
+					UpdateUserByIDQuery,
+					nil,
+					active, user.ID),
+				db.SetClientQueryRowMock(
+					getUserMockRows([]User{{ID: user.ID}}),
+					getUserByIDQuery,
+					nil,
+					user.ID),
+			},
+			expectedError: nil,
+			expectedUser:  User{ID: user.ID},
+		},
+	}
+
+	for _, test := range tests {
+		s.T().Run(test.name, func(t *testing.T) {
+			client, mock, err := sqlmock.New()
+			if err != nil {
+				assert.Fail(t, err.Error())
+				return
+			}
+
+			assertsCalls := test.mockCalls.apply(mock)
+			defer func() {
+				if err = assertsCalls(); err != nil {
+					assert.Fail(t, err.Error())
+				}
+			}()
+
+			rDB := NewRelationalDB(client)
+
+			user, err := rDB.modifyUser(userRequest, user)
+
+			assert.Equal(t, test.expectedError, err)
+			assert.Equal(t, test.expectedUser, user)
+		})
+	}
+}
+
 func getUserMockRows(users []User) *sqlmock.Rows {
 	rows := sqlmock.NewRows([]string{"user_id", "user_name", "alias", "email", "active", "date_created"})
 
