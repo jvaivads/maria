@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"runtime"
 	"strings"
@@ -35,10 +36,15 @@ func RenderToJSON(u any) string {
 }
 
 // GetTestContext generates a gin.context for test. Useful for testing controller layer
-func GetTestContext(params map[string]string, body any) (*gin.Context, *httptest.ResponseRecorder, error) {
+func GetTestContext(params map[string]string, queryString string, body any) (*gin.Context, *httptest.ResponseRecorder, error) {
 	gin.SetMode(gin.TestMode)
 	r := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(r)
+	ctx.Request = &http.Request{
+		URL: &url.URL{
+			RawQuery: queryString,
+		},
+	}
 
 	for key, value := range params {
 		ctx.AddParam(key, value)
@@ -51,9 +57,7 @@ func GetTestContext(params map[string]string, body any) (*gin.Context, *httptest
 	if b, err := json.Marshal(body); err != nil {
 		return nil, nil, err
 	} else {
-		ctx.Request = &http.Request{
-			Body: io.NopCloser(bytes.NewBuffer(b)),
-		}
+		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(b))
 	}
 
 	return ctx, r, nil

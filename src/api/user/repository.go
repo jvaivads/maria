@@ -112,7 +112,10 @@ func (r *relationalDB) createUser(request NewUserRequest) (User, error) {
 }
 
 func (r *relationalDB) modifyUser(request ModifyUserRequest, user User) (User, error) {
-	result, err := r.client.Exec(UpdateUserByIDQuery, request.Active, user.ID)
+	if request.Active != nil {
+		user.Active = *request.Active
+	}
+	result, err := r.client.Exec(UpdateUserByIDQuery, user.Active, user.ID)
 	if err != nil {
 		return User{}, db.ExecError(err, UpdateUserByIDQuery)
 	}

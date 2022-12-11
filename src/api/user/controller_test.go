@@ -104,7 +104,7 @@ func (c *ControllerSuite) TestGetUserByID() {
 			params := map[string]string{
 				"user_id": test.param,
 			}
-			ctx, r, err := util.GetTestContext(params, nil)
+			ctx, r, err := util.GetTestContext(params, "", nil)
 			if err != nil {
 				assert.Fail(t, err.Error())
 				return
@@ -205,7 +205,7 @@ func (c *ControllerSuite) TestPost() {
 
 	for _, test := range tests {
 		c.T().Run(test.name, func(t *testing.T) {
-			ctx, r, err := util.GetTestContext(nil, test.body)
+			ctx, r, err := util.GetTestContext(nil, "", test.body)
 			if err != nil {
 				assert.Fail(t, err.Error())
 				return
@@ -221,6 +221,123 @@ func (c *ControllerSuite) TestPost() {
 			}
 
 			test.controller.Post(ctx)
+
+			assert.Equal(t, test.expectedCode, r.Code)
+			assert.Equal(t, test.expectedBody, r.Body.String())
+		})
+	}
+}
+
+func (c *ControllerSuite) TestPut() {
+	var (
+		active          = true
+		requestToActive = ModifyUserRequest{Active: &active}
+		userID          = int64(10)
+		customError     = errors.New("custom error")
+	)
+
+	type test struct {
+		name           string
+		queryString    string
+		body           ModifyUserRequest
+		controller     Controller
+		applyMockCalls func(controller *Controller) (func(t *testing.T), error)
+		expectedCode   int
+		expectedBody   string
+	}
+
+	tests := []test{
+		{
+			name:           "not enough data",
+			body:           ModifyUserRequest{},
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: nil,
+			expectedCode:   http.StatusBadRequest,
+			expectedBody: util.RenderToJSON(newBadRequestResponse(
+				"user_id, user_name nor email were not specified in query string")),
+		},
+		{
+			name:           "more than one query parameter",
+			body:           ModifyUserRequest{},
+			queryString:    "user_id=value&user_name=value",
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: nil,
+			expectedCode:   http.StatusBadRequest,
+			expectedBody: util.RenderToJSON(newBadRequestResponse(
+				"specify only one parameter (user_id, user_name or email)")),
+		},
+		{
+			name:           "user_id is not a positive integer",
+			body:           ModifyUserRequest{},
+			queryString:    "user_id=value",
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: nil,
+			expectedCode:   http.StatusBadRequest,
+			expectedBody: util.RenderToJSON(newBadRequestResponse(
+				"user_id must be a positive integer")),
+		},
+		{
+			name:           "request is empty",
+			body:           ModifyUserRequest{},
+			queryString:    "user_id=10",
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: nil,
+			expectedCode:   http.StatusBadRequest,
+			expectedBody: util.RenderToJSON(newBadRequestResponse(
+				"request does not specify a change to be applied")),
+		},
+		{
+			name:        "user not found",
+			body:        requestToActive,
+			queryString: "user_id=10",
+			controller:  NewController(newServiceMock()),
+			applyMockCalls: setServicePutMock(
+				User{},
+				fmt.Errorf("error: %w", userNotFoundError),
+				requestToActive,
+				User{ID: userID}),
+			expectedCode: http.StatusBadRequest,
+			expectedBody: util.RenderToJSON(newBadRequestResponse(
+				fmt.Errorf("error: %w", userNotFoundError).Error())),
+		},
+		{
+			name:           "internal error",
+			body:           requestToActive,
+			queryString:    "user_name=name",
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: setServicePutMock(User{}, customError, requestToActive, User{UserName: "name"}),
+			expectedCode:   http.StatusInternalServerError,
+			expectedBody:   util.RenderToJSON(newInternalServerError(customError)),
+		},
+		{
+			name:           "internal error",
+			body:           requestToActive,
+			queryString:    "alias=alias",
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: setServicePutMock(User{Alias: "alias"}, nil, requestToActive, User{Alias: "alias"}),
+			expectedCode:   http.StatusOK,
+			expectedBody:   util.RenderToJSON(User{Alias: "alias"}),
+		},
+	}
+
+	for _, test := range tests {
+		c.T().Run(test.name, func(t *testing.T) {
+			ctx, r, err := util.GetTestContext(nil, test.queryString, test.body)
+			if err != nil {
+				assert.Fail(t, err.Error())
+				return
+			}
+
+			if test.applyMockCalls != nil {
+				if assertsCalls, err := test.applyMockCalls(&test.controller); err != nil {
+					assert.Fail(t, err.Error())
+					return
+				} else {
+					defer assertsCalls(t)
+				}
+			}
+
+			test.controller.Put(ctx)
 
 			assert.Equal(t, test.expectedCode, r.Code)
 			assert.Equal(t, test.expectedBody, r.Body.String())
@@ -333,6 +450,27 @@ func setServicePostMock(
 			return nil, errors.New("it could not cast to mock service")
 		}
 		s.On(util.GetFunctionName(s.createUser), userRequest).
+			Return(userResponse, errorResponse).
+			Once()
+
+		return func(t *testing.T) {
+			s.AssertExpectations(t)
+		}, nil
+	}
+}
+
+func setServicePutMock(
+	userResponse User,
+	errorResponse error,
+	request ModifyUserRequest,
+	userRequest User,
+) func(*Controller) (func(t *testing.T), error) {
+	return func(c *Controller) (func(t *testing.T), error) {
+		s, ok := c.service.(*serviceMock)
+		if !ok {
+			return nil, errors.New("it could not cast to mock service")
+		}
+		s.On(util.GetFunctionName(s.modifyUser), request, userRequest).
 			Return(userResponse, errorResponse).
 			Once()
 

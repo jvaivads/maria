@@ -108,6 +108,12 @@ func (c Controller) Put(ctx *gin.Context) {
 		return
 	}
 
+	if userRequest.isEmpty() {
+		ctx.JSON(http.StatusBadRequest, newBadRequestResponse(
+			"request does not specify a change to be applied"))
+		return
+	}
+
 	user := User{
 		ID:       userID,
 		UserName: userName,
@@ -115,7 +121,7 @@ func (c Controller) Put(ctx *gin.Context) {
 	}
 
 	if user, err = c.service.modifyUser(userRequest, user); err != nil {
-		if errors.Is(err, userWithSameValueError) {
+		if errors.Is(err, userNotFoundError) {
 			ctx.JSON(http.StatusBadRequest, newBadRequestResponse(err.Error()))
 			return
 		}

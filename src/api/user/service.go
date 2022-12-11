@@ -67,7 +67,7 @@ func (us userService) modifyUser(request ModifyUserRequest, user User) (User, er
 			return User{}, userNotFoundError
 		}
 		if len(users) > 1 {
-			return User{}, conflictError
+			return User{}, fmt.Errorf("%w: there is more than one user", conflictError)
 		}
 		user = users[0]
 	} else if user, err = us.getByID(user.ID); err != nil {
