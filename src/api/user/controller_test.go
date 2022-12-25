@@ -310,7 +310,7 @@ func (c *ControllerSuite) TestPut() {
 			expectedBody:   util.RenderToJSON(newInternalServerError(customError)),
 		},
 		{
-			name:           "internal error",
+			name:           "status ok",
 			body:           requestToActive,
 			queryString:    "alias=alias",
 			controller:     NewController(newServiceMock()),
@@ -353,6 +353,8 @@ func (c *ControllerSuite) TestSetURLMapping() {
 			Alias:    "alias",
 			Email:    "email@email.com",
 		}
+		active         = true
+		userRequestPut = ModifyUserRequest{Active: &active}
 	)
 
 	type test struct {
@@ -383,6 +385,14 @@ func (c *ControllerSuite) TestSetURLMapping() {
 				nil,
 				userRequest,
 			),
+		},
+		{
+			name:           "put user",
+			path:           "/user/10?alias=alias",
+			method:         http.MethodPut,
+			body:           userRequestPut,
+			controller:     NewController(newServiceMock()),
+			applyMockCalls: setServicePutMock(User{Alias: "alias"}, nil, userRequestPut, User{Alias: "alias"}),
 		},
 	}
 
