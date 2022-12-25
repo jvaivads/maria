@@ -143,7 +143,7 @@ func (s *UserServiceSuite) TestCreateUser() {
 			expectedUser:  User{},
 		},
 		{
-			name: "create user return error",
+			name: "with transaction return error",
 			mockCalls: mockPersisterApplier{
 				setPersiterSelectByAnyMock(
 					nil,
@@ -151,7 +151,7 @@ func (s *UserServiceSuite) TestCreateUser() {
 					userRequest.UserName,
 					userRequest.Alias,
 					userRequest.Email),
-				setPersiterCreateUserMock(User{}, customError, userRequest),
+				setPersiterWithTransactionMock(customError),
 			},
 			expectedError: customError,
 			expectedUser:  User{},
@@ -165,7 +165,40 @@ func (s *UserServiceSuite) TestCreateUser() {
 					userRequest.UserName,
 					userRequest.Alias,
 					userRequest.Email),
-				setPersiterCreateUserMock(userRequest.toUser(userID, time.Time{}, false), nil, userRequest),
+				setPersiterWithTransactionMock(nil),
+				setPersiterCreateUserMock(0, customError, userRequest),
+			},
+			expectedError: customError,
+			expectedUser:  User{},
+		},
+		{
+			name: "select by user id  return error",
+			mockCalls: mockPersisterApplier{
+				setPersiterSelectByAnyMock(
+					nil,
+					nil,
+					userRequest.UserName,
+					userRequest.Alias,
+					userRequest.Email),
+				setPersiterWithTransactionMock(nil),
+				setPersiterCreateUserMock(userID, nil, userRequest),
+				setPersiterSelectByIDMock(User{}, customError, userID),
+			},
+			expectedError: customError,
+			expectedUser:  User{},
+		},
+		{
+			name: "create user is ok",
+			mockCalls: mockPersisterApplier{
+				setPersiterSelectByAnyMock(
+					nil,
+					nil,
+					userRequest.UserName,
+					userRequest.Alias,
+					userRequest.Email),
+				setPersiterWithTransactionMock(nil),
+				setPersiterCreateUserMock(userID, nil, userRequest),
+				setPersiterSelectByIDMock(userRequest.toUser(userID, time.Time{}, false), nil, userID),
 			},
 			expectedError: nil,
 			expectedUser:  userRequest.toUser(userID, time.Time{}, false),
@@ -402,7 +435,7 @@ func setPersiterSelectByAnyMock(
 }
 
 func setPersiterCreateUserMock(
-	userResponse User,
+	userIDResponse int64,
 	err error,
 	userRequest NewUserRequest,
 ) func(us *userService) (func(t *testing.T), error) {
@@ -413,7 +446,7 @@ func setPersiterCreateUserMock(
 		}
 		r.On(
 			util.GetFunctionName(r.createUser), userRequest).
-			Return(userResponse, err).
+			Return(userIDResponse, err).
 			Once()
 		return func(t *testing.T) {
 			r.AssertExpectations(t)

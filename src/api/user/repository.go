@@ -17,7 +17,7 @@ const (
 type Querier interface {
 	selectByID(int64) (User, error)
 	selectByAny(string, string, string) ([]User, error)
-	createUser(NewUserRequest) (User, error)
+	createUser(NewUserRequest) (int64, error)
 	modifyUser(ModifyUserRequest, User) (bool, error)
 }
 
@@ -104,7 +104,7 @@ func (r *relationalDB) selectByAny(name, alias, email string) ([]User, error) {
 	return users, nil
 }
 
-func (r *relationalDB) createUser(request NewUserRequest) (User, error) {
+func (r *relationalDB) createUser(request NewUserRequest) (int64, error) {
 	var (
 		userID int64
 		result sql.Result
@@ -113,14 +113,14 @@ func (r *relationalDB) createUser(request NewUserRequest) (User, error) {
 
 	result, err = r.client.Exec(insertUserQuery, request.UserName, request.Alias, request.Email)
 	if err != nil {
-		return User{}, db.ExecError(err, insertUserQuery)
+		return 0, db.ExecError(err, insertUserQuery)
 	}
 
 	if userID, err = result.LastInsertId(); err != nil {
-		return User{}, db.LastInsertedError(err, insertUserQuery)
+		return 0, db.LastInsertedError(err, insertUserQuery)
 	}
 
-	return r.selectByID(userID)
+	return userID, nil
 }
 
 func (r *relationalDB) modifyUser(request ModifyUserRequest, user User) (bool, error) {

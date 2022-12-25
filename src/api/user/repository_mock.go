@@ -22,9 +22,9 @@ func (m *dbMock) selectByAny(name, alias, email string) ([]User, error) {
 	return mockUsers(args, 0), args.Error(1)
 }
 
-func (m *dbMock) createUser(request NewUserRequest) (User, error) {
+func (m *dbMock) createUser(request NewUserRequest) (int64, error) {
 	args := m.Called(request)
-	return mockUser(args, 0), args.Error(1)
+	return mockInt64(args, 0), args.Error(1)
 }
 
 func (m *dbMock) modifyUser(request ModifyUserRequest, user User) (bool, error) {

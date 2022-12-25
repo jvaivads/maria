@@ -195,7 +195,6 @@ func (s *relationalDBSuite) TestSelectByAny() {
 func (s *relationalDBSuite) TestCreateUser() {
 	var (
 		userID      = int64(10)
-		dateCreated = time.Now()
 		userRequest = NewUserRequest{
 			UserName: "name",
 			Alias:    "alias",
@@ -205,10 +204,10 @@ func (s *relationalDBSuite) TestCreateUser() {
 	)
 
 	type test struct {
-		name          string
-		mockCalls     mockDBApplier
-		expectedError error
-		expectedUser  User
+		name           string
+		mockCalls      mockDBApplier
+		expectedError  error
+		expectedUserID int64
 	}
 
 	tests := []test{
@@ -220,8 +219,8 @@ func (s *relationalDBSuite) TestCreateUser() {
 				customError,
 				userRequest.UserName, userRequest.Alias, userRequest.Email),
 			},
-			expectedError: db.ExecError(customError, insertUserQuery),
-			expectedUser:  User{},
+			expectedError:  db.ExecError(customError, insertUserQuery),
+			expectedUserID: 0,
 		},
 		{
 			name: "last inserted error",
@@ -231,8 +230,8 @@ func (s *relationalDBSuite) TestCreateUser() {
 				nil,
 				userRequest.UserName, userRequest.Alias, userRequest.Email),
 			},
-			expectedError: db.LastInsertedError(customError, insertUserQuery),
-			expectedUser:  User{},
+			expectedError:  db.LastInsertedError(customError, insertUserQuery),
+			expectedUserID: 0,
 		},
 		{
 			name: "happy case",
@@ -242,15 +241,9 @@ func (s *relationalDBSuite) TestCreateUser() {
 					insertUserQuery,
 					nil,
 					userRequest.UserName, userRequest.Alias, userRequest.Email),
-				db.SetClientQueryMock(
-					getUserMockRows([]User{userRequest.toUser(userID, dateCreated, false)}),
-					getUserByIDQuery,
-					nil,
-					nil,
-					userID),
 			},
-			expectedError: nil,
-			expectedUser:  userRequest.toUser(userID, dateCreated, false),
+			expectedError:  nil,
+			expectedUserID: userID,
 		},
 	}
 
@@ -274,7 +267,7 @@ func (s *relationalDBSuite) TestCreateUser() {
 			user, err := rDB.createUser(userRequest)
 
 			assert.Equal(t, test.expectedError, err)
-			assert.Equal(t, test.expectedUser, user)
+			assert.Equal(t, test.expectedUserID, user)
 		})
 	}
 }

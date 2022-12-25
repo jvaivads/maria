@@ -51,7 +51,25 @@ func (us userService) createUser(user NewUserRequest) (User, error) {
 		return User{}, conflictError
 	}
 
-	return us.userRepository.createUser(user)
+	var (
+		newUser User
+		err     error
+	)
+
+	if err = us.userRepository.withTransaction(func(tx Transactioner) error {
+		userID, err := tx.createUser(user)
+		if err != nil {
+			return err
+		}
+
+		if newUser, err = tx.selectByID(userID); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return User{}, err
+	}
+	return newUser, nil
 }
 
 func (us userService) modifyUser(request ModifyUserRequest, user User) (User, error) {
