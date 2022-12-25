@@ -2,6 +2,7 @@ package user
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"maria/src/api/db"
 )
@@ -13,11 +14,22 @@ const (
 	UpdateUserByIDQuery = `UPDATE user SET active = ? WHERE id = ?`
 )
 
-type Persister interface {
+type Querier interface {
 	selectByID(int64) (User, error)
 	selectByAny(string, string, string) ([]User, error)
 	createUser(NewUserRequest) (User, error)
-	modifyUser(ModifyUserRequest, User) (User, error)
+	modifyUser(ModifyUserRequest, User) (bool, error)
+}
+
+type Persister interface {
+	Querier
+	withTransaction(fn func(tx Transactioner) error) error
+}
+
+type Transactioner interface {
+	Querier
+	commit() error
+	rollback() error
 }
 
 func NewRelationalDB(client db.Client) Persister {
@@ -111,18 +123,68 @@ func (r *relationalDB) createUser(request NewUserRequest) (User, error) {
 	return r.selectByID(userID)
 }
 
-func (r *relationalDB) modifyUser(request ModifyUserRequest, user User) (User, error) {
+func (r *relationalDB) modifyUser(request ModifyUserRequest, user User) (bool, error) {
 	if request.Active != nil {
 		user.Active = *request.Active
 	}
 	result, err := r.client.Exec(UpdateUserByIDQuery, user.Active, user.ID)
 	if err != nil {
-		return User{}, db.ExecError(err, UpdateUserByIDQuery)
+		return false, db.ExecError(err, UpdateUserByIDQuery)
 	}
 
-	if _, err := result.RowsAffected(); err != nil {
-		return User{}, db.RowsAffectedError(err, UpdateUserByIDQuery)
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, db.RowsAffectedError(err, UpdateUserByIDQuery)
 	}
 
-	return r.selectByID(user.ID)
+	return rowsAffected == 1, nil
+}
+
+func (r *relationalDB) getTransactioner() (Transactioner, error) {
+	client, ok := r.client.(*sql.DB)
+	if !ok {
+		return nil, errors.New("persister cannot generate transactional db")
+	}
+
+	tx, err := client.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("persister cannot generate transactional due to: %w", err)
+	}
+
+	return &transactionalDB{relationalDB: relationalDB{client: tx}, tx: tx}, nil
+}
+
+func (r *relationalDB) withTransaction(fn func(tx Transactioner) error) error {
+	tx, err := r.getTransactioner()
+	if err != nil {
+		return err
+	}
+
+	if err = fn(tx); err != nil {
+		if err := tx.rollback(); err != nil {
+			return err
+		}
+		return err
+	}
+
+	return tx.commit()
+}
+
+type transactionalDB struct {
+	relationalDB
+	tx *sql.Tx
+}
+
+func (tx *transactionalDB) commit() error {
+	if err := tx.tx.Commit(); err != nil {
+		return db.CommitError(err)
+	}
+	return nil
+}
+
+func (tx *transactionalDB) rollback() error {
+	if err := tx.tx.Rollback(); err != nil {
+		return db.RollbackError(err)
+	}
+	return nil
 }

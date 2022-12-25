@@ -24,6 +24,16 @@ func mockUser(args mock.Arguments, index int) User {
 	return s
 }
 
+func mockInt64(args mock.Arguments, index int) int64 {
+	obj := args.Get(index)
+	var s int64
+	var ok bool
+	if s, ok = obj.(int64); !ok {
+		panic(fmt.Sprintf("assert: arguments: Int64(%d) failed because object wasn't correct type: %v", index, args.Get(index)))
+	}
+	return s
+}
+
 func mockUsers(args mock.Arguments, index int) []User {
 	obj := args.Get(index)
 	var s []User

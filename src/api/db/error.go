@@ -28,4 +28,10 @@ var (
 		}
 		return fmt.Errorf("unexpected error scannig result by using query: '%s'. error: %w", query, err)
 	}
+	CommitError = func(err error) error {
+		return fmt.Errorf("it could not commit it due to: %w", err)
+	}
+	RollbackError = func(err error) error {
+		return fmt.Errorf("it could not rollback it due to: %w", err)
+	}
 )

@@ -291,7 +291,7 @@ func (s *relationalDBSuite) TestModifyUser() {
 		name          string
 		mockCalls     mockDBApplier
 		expectedError error
-		expectedUser  User
+		expectedTag   bool
 	}
 
 	tests := []test{
@@ -304,7 +304,7 @@ func (s *relationalDBSuite) TestModifyUser() {
 				active, user.ID),
 			},
 			expectedError: db.ExecError(customError, UpdateUserByIDQuery),
-			expectedUser:  User{},
+			expectedTag:   false,
 		},
 		{
 			name: "rows affected error",
@@ -315,24 +315,7 @@ func (s *relationalDBSuite) TestModifyUser() {
 				active, user.ID),
 			},
 			expectedError: db.RowsAffectedError(customError, UpdateUserByIDQuery),
-			expectedUser:  User{},
-		},
-		{
-			name: "select by id return error",
-			mockCalls: mockDBApplier{
-				db.SetClientExecMock(
-					sqlmock.NewResult(0, 1),
-					UpdateUserByIDQuery,
-					nil,
-					active, user.ID),
-				db.SetClientQueryRowMock(
-					getUserMockRows([]User{{ID: user.ID}}),
-					getUserByIDQuery,
-					errors.New("custom error"),
-					user.ID),
-			},
-			expectedError: db.ScanError(customError, getUserByIDQuery),
-			expectedUser:  User{},
+			expectedTag:   false,
 		},
 		{
 			name: "happy case",
@@ -342,14 +325,9 @@ func (s *relationalDBSuite) TestModifyUser() {
 					UpdateUserByIDQuery,
 					nil,
 					active, user.ID),
-				db.SetClientQueryRowMock(
-					getUserMockRows([]User{{ID: user.ID}}),
-					getUserByIDQuery,
-					nil,
-					user.ID),
 			},
 			expectedError: nil,
-			expectedUser:  User{ID: user.ID},
+			expectedTag:   true,
 		},
 	}
 
@@ -373,7 +351,7 @@ func (s *relationalDBSuite) TestModifyUser() {
 			user, err := rDB.modifyUser(userRequest, user)
 
 			assert.Equal(t, test.expectedError, err)
-			assert.Equal(t, test.expectedUser, user)
+			assert.Equal(t, test.expectedTag, user)
 		})
 	}
 }

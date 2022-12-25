@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -245,11 +246,36 @@ func (s *UserServiceSuite) TestModifyUser() {
 			expectedUser:  User{},
 		},
 		{
+			name: "with transaction return error",
+			user: User{UserName: "name"},
+			mockCalls: mockPersisterApplier{
+				setPersiterSelectByAnyMock([]User{{ID: userID}}, nil, "name", "", ""),
+				setPersiterWithTransactionMock(customError),
+			},
+
+			expectedError: customError,
+			expectedUser:  User{},
+		},
+		{
 			name: "modify user return error",
 			user: User{UserName: "name"},
 			mockCalls: mockPersisterApplier{
 				setPersiterSelectByAnyMock([]User{{ID: userID}}, nil, "name", "", ""),
-				setPersiterModifyUserMock(User{}, customError, userRequest, User{ID: userID}),
+				setPersiterWithTransactionMock(nil),
+				setPersiterModifyUserMock(false, customError, userRequest, User{ID: userID}),
+			},
+
+			expectedError: customError,
+			expectedUser:  User{},
+		},
+		{
+			name: "select user by id return error",
+			user: User{UserName: "name"},
+			mockCalls: mockPersisterApplier{
+				setPersiterSelectByAnyMock([]User{{ID: userID}}, nil, "name", "", ""),
+				setPersiterWithTransactionMock(nil),
+				setPersiterModifyUserMock(true, nil, userRequest, User{ID: userID}),
+				setPersiterSelectByIDMock(User{}, customError, userID),
 			},
 
 			expectedError: customError,
@@ -270,7 +296,9 @@ func (s *UserServiceSuite) TestModifyUser() {
 			user: User{ID: userID},
 			mockCalls: mockPersisterApplier{
 				setPersiterSelectByIDMock(User{ID: userID}, nil, userID),
-				setPersiterModifyUserMock(User{ID: userID}, nil, userRequest, User{ID: userID}),
+				setPersiterWithTransactionMock(nil),
+				setPersiterModifyUserMock(true, nil, userRequest, User{ID: userID}),
+				setPersiterSelectByIDMock(User{ID: userID}, nil, userID),
 			},
 
 			expectedError: nil,
@@ -312,6 +340,23 @@ func (appliers mockPersisterApplier) apply(us *userService) (func(t *testing.T),
 			assertCalls[i](t)
 		}
 	}, nil
+}
+
+func setPersiterWithTransactionMock(
+	errorResponse error,
+) func(us *userService) (func(t *testing.T), error) {
+	return func(us *userService) (func(t *testing.T), error) {
+		r, ok := us.userRepository.(*dbMock)
+		if !ok {
+			return nil, errors.New("it could not cast to mock repository")
+		}
+		r.On(util.GetFunctionName(r.withTransaction), mock.Anything).
+			Return(errorResponse).
+			Once()
+		return func(t *testing.T) {
+			r.AssertExpectations(t)
+		}, nil
+	}
 }
 
 func setPersiterSelectByIDMock(
@@ -377,7 +422,7 @@ func setPersiterCreateUserMock(
 }
 
 func setPersiterModifyUserMock(
-	userResponse User,
+	response bool,
 	err error,
 	request ModifyUserRequest,
 	user User,
@@ -389,7 +434,7 @@ func setPersiterModifyUserMock(
 		}
 		r.On(
 			util.GetFunctionName(r.modifyUser), request, user).
-			Return(userResponse, err).
+			Return(response, err).
 			Once()
 		return func(t *testing.T) {
 			r.AssertExpectations(t)

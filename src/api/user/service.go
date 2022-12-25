@@ -74,5 +74,16 @@ func (us userService) modifyUser(request ModifyUserRequest, user User) (User, er
 		return User{}, err
 	}
 
-	return us.userRepository.modifyUser(request, user)
+	if err = us.userRepository.withTransaction(func(tx Transactioner) error {
+		if _, err = tx.modifyUser(request, user); err != nil {
+			return err
+		}
+
+		user, err = tx.selectByID(user.ID)
+		return err
+	}); err != nil {
+		return User{}, err
+	}
+
+	return user, nil
 }

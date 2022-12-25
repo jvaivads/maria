@@ -27,7 +27,27 @@ func (m *dbMock) createUser(request NewUserRequest) (User, error) {
 	return mockUser(args, 0), args.Error(1)
 }
 
-func (m *dbMock) modifyUser(request ModifyUserRequest, user User) (User, error) {
+func (m *dbMock) modifyUser(request ModifyUserRequest, user User) (bool, error) {
 	args := m.Called(request, user)
-	return mockUser(args, 0), args.Error(1)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *dbMock) withTransaction(fn func(tx Transactioner) error) error {
+	args := m.Called(fn)
+
+	if err := args.Error(0); err != nil {
+		return err
+	}
+
+	return fn(m)
+}
+
+func (m *dbMock) commit() error {
+	args := m.Called()
+	return args.Error(1)
+}
+
+func (m *dbMock) rollback() error {
+	args := m.Called()
+	return args.Error(1)
 }
